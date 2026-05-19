@@ -1,88 +1,60 @@
-import { chromium } from "playwright"
 import { DhhsFiling, Finding } from "../types"
 import { store } from "../store"
 
 const DHHS_CON_URL = "https://www.maine.gov/dhhs/mecdc/certificate-of-need"
 const DHHS_LICENSE_URL = "https://www.maine.gov/dhhs/mecdc/home-health-licensing"
 
-async function scrapeConFilings(): Promise<DhhsFiling[]> {
-  const filings: DhhsFiling[] = []
-  let browser
-
+async function fetchPageText(url: string): Promise<string> {
   try {
-    browser = await chromium.launch({ headless: true })
-    const context = await browser.newContext({ userAgent: "AndwellIntelligence/1.0" })
-    const page = await context.newPage()
-    await page.goto(DHHS_CON_URL, { waitUntil: "domcontentloaded", timeout: 20000 })
-    await page.waitForTimeout(3000)
-
-    const text = await page.innerText("body")
-    const lines = text.split("\n").map(l => l.trim()).filter(Boolean)
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      if (
-        (line.toLowerCase().includes("home health") || line.toLowerCase().includes("wound") || line.toLowerCase().includes("home care")) &&
-        (line.toLowerCase().includes("notice") || line.toLowerCase().includes("application") || line.toLowerCase().includes("filing"))
-      ) {
-        const county = extractCounty(line) || "Unknown"
-        filings.push({
-          id: `con-${Date.now()}-${i}`,
-          type: "certificate-of-need",
-          filerName: extractFiler(line),
-          description: line.slice(0, 200),
-          county,
-          date: new Date().toISOString().split("T")[0],
-          status: "pending",
-        })
-      }
+    const { chromium } = await import("playwright")
+    const browser = await chromium.launch({ headless: true })
+    try {
+      const context = await browser.newContext({ userAgent: "AndwellIntelligence/1.0" })
+      const page = await context.newPage()
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 })
+      await page.waitForTimeout(3000)
+      const text = await page.innerText("body")
+      await context.close()
+      return text
+    } finally {
+      await browser.close()
     }
   } catch {
-  } finally {
-    if (browser) await browser.close()
+    return ""
   }
+}
 
+function extractFilings(text: string, type: DhhsFiling["type"], keywords: RegExp): DhhsFiling[] {
+  const filings: DhhsFiling[] = []
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (keywords.test(line.toLowerCase())) {
+      filings.push({
+        id: `${type.slice(0, 3)}-${Date.now()}-${i}`,
+        type,
+        filerName: extractFiler(line),
+        description: line.slice(0, 200),
+        county: extractCounty(line) || "Unknown",
+        date: new Date().toISOString().split("T")[0],
+        status: line.toLowerCase().includes("approved") ? "approved" : "pending",
+      })
+    }
+  }
   return filings
 }
 
+const CON_KEYWORDS = /home.?health|wound|home.?care|notice|application|filing/
+const LICENSE_KEYWORDS = /license|certified|approved|home.?health|home.?care|skilled.?nursing/
+
+async function scrapeConFilings(): Promise<DhhsFiling[]> {
+  const text = await fetchPageText(DHHS_CON_URL)
+  return text ? extractFilings(text, "certificate-of-need", CON_KEYWORDS) : []
+}
+
 async function scrapeLicenseNotices(): Promise<DhhsFiling[]> {
-  const filings: DhhsFiling[] = []
-  let browser
-
-  try {
-    browser = await chromium.launch({ headless: true })
-    const context = await browser.newContext({ userAgent: "AndwellIntelligence/1.0" })
-    const page = await context.newPage()
-    await page.goto(DHHS_LICENSE_URL, { waitUntil: "domcontentloaded", timeout: 20000 })
-    await page.waitForTimeout(3000)
-
-    const text = await page.innerText("body")
-    const lines = text.split("\n").map(l => l.trim()).filter(Boolean)
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      if (
-        (line.toLowerCase().includes("license") || line.toLowerCase().includes("certified") || line.toLowerCase().includes("approved")) &&
-        (line.toLowerCase().includes("home health") || line.toLowerCase().includes("home care") || line.toLowerCase().includes("skilled nursing"))
-      ) {
-        const county = extractCounty(line) || "Unknown"
-        filings.push({
-          id: `lic-${Date.now()}-${i}`,
-          type: "license",
-          filerName: extractFiler(line),
-          description: line.slice(0, 200),
-          county,
-          date: new Date().toISOString().split("T")[0],
-          status: line.toLowerCase().includes("approved") ? "approved" : "pending",
-        })
-      }
-    }
-  } catch {
-  } finally {
-    if (browser) await browser.close()
-  }
-
-  return filings
+  const text = await fetchPageText(DHHS_LICENSE_URL)
+  return text ? extractFilings(text, "license", LICENSE_KEYWORDS) : []
 }
 
 const MAINE_COUNTIES = [

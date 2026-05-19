@@ -1,4 +1,3 @@
-import { chromium, Browser } from "playwright"
 import { CrawlResult } from "./types"
 import { store } from "./store"
 import { changeDetector } from "./change-detector"
@@ -62,7 +61,9 @@ async function discoverSitemapUrls(domain: string): Promise<string[]> {
   return urls.slice(0, MAX_PAGES)
 }
 
-async function crawlPage(browser: Browser, url: string): Promise<PageResult> {
+async function crawlPagePlaywright(url: string): Promise<PageResult> {
+  const { chromium } = await import("playwright")
+  const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ userAgent: "AndwellIntelligence/1.0" })
   const page = await context.newPage()
   try {
@@ -73,6 +74,7 @@ async function crawlPage(browser: Browser, url: string): Promise<PageResult> {
     return { url, text: text.slice(0, 50000), title }
   } finally {
     await context.close()
+    await browser.close()
   }
 }
 
@@ -160,34 +162,26 @@ export async function crawlUrl(
 
   const allPages: PageResult[] = []
 
-  let browser: Browser | null = null
-  try {
-    browser = await chromium.launch({ headless: true })
-  } catch {
-    const fallbackText = await fetch(url, { signal: AbortSignal.timeout(8000) }).then(r => r.text()).catch(() => "")
-    if (fallbackText) {
-      allPages.push({ url, text: fallbackText.slice(0, 50000), title: "" })
-    }
-    return buildResult(url, domain, allPages, competitorId)
-  }
-
   try {
     if (sitemapUrls.length > 0) {
       const allowed = sitemapUrls.filter(u => isAllowed(u, disallowed))
       const batch = allowed.slice(0, MAX_PAGES)
       for (const pu of batch) {
-        const pr = await crawlPage(browser, pu)
+        const pr = await crawlPagePlaywright(pu)
         allPages.push(pr)
         await new Promise(r => setTimeout(r, CRAWL_DELAY_MS))
       }
     }
 
     if (allPages.length === 0 && isAllowed(url, disallowed)) {
-      const pr = await crawlPage(browser, url)
+      const pr = await crawlPagePlaywright(url)
       allPages.push(pr)
     }
-  } finally {
-    await browser.close()
+  } catch {
+    const fallbackText = await fetch(url, { signal: AbortSignal.timeout(8000) }).then(r => r.text()).catch(() => "")
+    if (fallbackText) {
+      allPages.push({ url, text: fallbackText.slice(0, 50000), title: "" })
+    }
   }
 
   return buildResult(url, domain, allPages, competitorId)
