@@ -31,7 +31,7 @@ export default function AskTheHubPage() {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/analysis", {
+      const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q }),

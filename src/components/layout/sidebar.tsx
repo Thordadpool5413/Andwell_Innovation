@@ -3,14 +3,16 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useLens } from "@/lib/lens-context"
-import { BarChart3, Crosshair, Shield, FileText, MessageSquare, BookOpen, TrendingUp, Building2, Rocket, Activity, Settings } from "lucide-react"
+import { BarChart3, Crosshair, Shield, FileText, MessageSquare, BookOpen, TrendingUp, Building2, Rocket, Activity, Settings, CheckSquare, Target } from "lucide-react"
 
 const allNavItems = [
   { href: "/", label: "Dashboard", icon: BarChart3, lenses: ["executive", "sales-leader", "sales-rep", "admin"] as const },
   { href: "/competitor-intake", label: "Competitor Intake", icon: Crosshair, lenses: ["executive", "sales-leader", "admin"] as const },
   { href: "/evidence-matrix", label: "Evidence Matrix", icon: Shield, lenses: ["executive", "sales-leader", "sales-rep", "admin"] as const },
+  { href: "/gap-finder", label: "Gap Finder", icon: Target, lenses: ["executive", "sales-leader", "admin"] as const },
   { href: "/battlecards", label: "Battlecards", icon: FileText, lenses: ["executive", "sales-leader", "sales-rep", "admin"] as const },
   { href: "/reports", label: "Reports", icon: FileText, lenses: ["executive", "sales-leader", "admin"] as const },
+  { href: "/review-center", label: "Review Center", icon: CheckSquare, lenses: ["executive", "sales-leader", "admin"] as const },
   { href: "/ask-the-hub", label: "Ask the Hub", icon: MessageSquare, lenses: ["executive", "sales-leader", "sales-rep", "admin"] as const },
   { href: "/catalog", label: "Andwell Catalog", icon: BookOpen, lenses: ["sales-leader", "sales-rep", "admin"] as const },
   { href: "/growth-command", label: "Growth Command", icon: TrendingUp, lenses: ["executive", "sales-leader", "admin"] as const },

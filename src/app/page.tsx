@@ -1,24 +1,30 @@
 "use client"
 
-import { BarChart3, Crosshair, TrendingUp, Building2, Rocket, Activity } from "lucide-react"
+import { BarChart3, Crosshair, TrendingUp, Building2, Shield, AlertCircle, Clock } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
-import { mockCompetitors, mockCounties, mockBattlecards, maineOverview } from "@/lib/data"
+import { mockCompetitors, mockCounties, mockBattlecardsOld, maineOverview, mockEvidence } from "@/lib/data"
 import { useLens } from "@/lib/lens-context"
+import Link from "next/link"
 
 const COLORS = ["#3b82f6", "#22c55e", "#eab308", "#ef4444", "#a855f7", "#06b6d4"]
 
 export default function DashboardPage() {
   const { lens } = useLens()
+
+  const pendingReviews = mockEvidence.filter(e => !e.confidence || e.confidence === "possible").length
+  const approvedCount = mockEvidence.filter(e => e.confidence === "confirmed").length
+  const criticalCompetitors = mockCompetitors.filter(c => c.threatLevel === "high" || c.threatLevel === "critical").length
+
   const stats = [
-    { label: "Maine Competitors Tracked", value: `${mockCompetitors.length}`, change: "All with Maine presence", icon: Crosshair, color: "text-blue-400" },
-    { label: "Avg Win Rate", value: "59%", change: "Across all Maine competitors", icon: BarChart3, color: "text-green-400" },
-    { label: "Unserved Rural Patients", value: "12,400+", change: "Addressable in 6 priority counties", icon: TrendingUp, color: "text-purple-400" },
+    { label: "Maine Competitors Tracked", value: `${mockCompetitors.length}`, change: `${criticalCompetitors} with critical/high threat`, icon: Crosshair, color: "text-blue-400" },
+    { label: "Avg Win Rate", value: `${Math.round(mockBattlecardsOld.reduce((s, b) => s + b.winRate, 0) / mockBattlecardsOld.length)}%`, change: "Across all Maine competitors", icon: BarChart3, color: "text-green-400" },
+    { label: "Unserved Rural Patients", value: `${(maineOverview.unservedRuralPatients / 1000).toFixed(1)}K+`, change: "Addressable in 6 priority counties", icon: TrendingUp, color: "text-purple-400" },
     { label: "Maine Counties Covered", value: "16/16", change: "Full state coverage", icon: Building2, color: "text-amber-400" },
-    { label: "Growth Pipeline", value: "$9.2M", change: "4 active expansion scenarios", icon: Rocket, color: "text-cyan-400" },
-    { label: "System Health", value: "All OK", change: "8/8 API services", icon: Activity, color: "text-emerald-400" },
+    { label: "Evidence Items", value: `${mockEvidence.length}`, change: `${approvedCount} confirmed`, icon: Shield, color: "text-cyan-400" },
+    { label: "Pending Review", value: `${pendingReviews}`, change: "Awaiting approval", icon: Clock, color: "text-rose-400" },
   ]
 
-  const shareData = mockBattlecards.map(b => ({ name: b.competitorName, share: b.maineMarketShare, winRate: b.winRate }))
+  const shareData = mockBattlecardsOld.map(b => ({ name: b.competitorName, share: b.maineMarketShare, winRate: b.winRate }))
   const countyData = [...mockCounties].sort((a, b) => b.priorityScore - a.priorityScore).slice(0, 8)
   const lensLabel = { executive: "Executive", "sales-leader": "Sales Leader", "sales-rep": "Sales Rep", admin: "Admin" }[lens]
 
@@ -32,9 +38,18 @@ export default function DashboardPage() {
           </div>
           <p className="text-zinc-500 text-sm mt-1">Maine-focused competitive intelligence and growth planning</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm">
-          <span className="text-zinc-500">Maine Market</span>
-          <span className="text-white ml-2 font-semibold">{maineOverview.population.toLocaleString()} residents</span>
+        <div className="flex items-center gap-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm">
+            <span className="text-zinc-500">Maine Market</span>
+            <span className="text-white ml-2 font-semibold">{maineOverview.population.toLocaleString()} residents</span>
+          </div>
+          <Link
+            href="/review-center"
+            className="flex items-center gap-2 bg-amber-900/30 border border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-300 hover:bg-amber-900/50 transition-colors"
+          >
+            <AlertCircle className="w-3.5 h-3.5" />
+            {pendingReviews} pending review
+          </Link>
         </div>
       </div>
 
@@ -63,9 +78,7 @@ export default function DashboardPage() {
               <BarChart data={shareData} layout="vertical">
                 <XAxis type="number" tick={{ fill: "#71717a", fontSize: 12 }} />
                 <YAxis dataKey="name" type="category" tick={{ fill: "#d4d4d8", fontSize: 11 }} width={100} />
-                <Tooltip
-                  contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#fff" }}
-                />
+                <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#fff" }} />
                 <Bar dataKey="share" name="Market Share" radius={[0, 4, 4, 0]}>
                   {shareData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Bar>
@@ -80,9 +93,7 @@ export default function DashboardPage() {
               <BarChart data={shareData}>
                 <XAxis dataKey="name" tick={{ fill: "#d4d4d8", fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
                 <YAxis domain={[0, 100]} tick={{ fill: "#71717a", fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#fff" }}
-                />
+                <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#fff" }} />
                 <Bar dataKey="winRate" name="Win Rate" radius={[4, 4, 0, 0]}>
                   {shareData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Bar>
@@ -99,9 +110,7 @@ export default function DashboardPage() {
             <BarChart data={countyData}>
               <XAxis dataKey="county" tick={{ fill: "#d4d4d8", fontSize: 11 }} />
               <YAxis tick={{ fill: "#71717a", fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#fff" }}
-              />
+              <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#fff" }} />
               <Bar dataKey="homeHealthDemand" name="Home Health" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               <Bar dataKey="mobileWoundDemand" name="Wound Care" fill="#22c55e" radius={[4, 4, 0, 0]} />
               <Bar dataKey="therapyCareDemand" name="Therapy" fill="#eab308" radius={[4, 4, 0, 0]} />

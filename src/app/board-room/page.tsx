@@ -1,12 +1,12 @@
 "use client"
 
 import { Building2, TrendingUp, Shield, AlertTriangle, MapPin } from "lucide-react"
-import { mockBattlecards, mockCounties, mockScenarios, maineOverview } from "@/lib/data"
+import { mockBattlecardsOld, mockCounties, mockScenarios, maineOverview } from "@/lib/data"
 
 export default function BoardRoomPage() {
   const totalUpside = mockScenarios.reduce((s, c) => s + c.projectedRevenue, 0)
   const priorityCounties = [...mockCounties].filter(c => c.priorityScore >= 85).sort((a, b) => b.priorityScore - a.priorityScore)
-  const avgWinRate = Math.round(mockBattlecards.reduce((s, b) => s + b.winRate, 0) / mockBattlecards.length)
+  const avgWinRate = Math.round(mockBattlecardsOld.reduce((s, b) => s + b.winRate, 0) / mockBattlecardsOld.length)
 
   return (
     <div className="space-y-6">
@@ -65,7 +65,7 @@ export default function BoardRoomPage() {
           <div className="text-3xl font-bold text-white">{avgWinRate}%</div>
           <p className="text-sm text-zinc-500 mt-1">Average win rate vs Maine competitors</p>
           <div className="mt-3 text-xs space-y-1">
-            {mockBattlecards.map((b) => (
+            {mockBattlecardsOld.map((b) => (
               <div key={b.id} className="flex justify-between">
                 <span className="text-zinc-600">{b.competitorName}</span>
                 <span className={b.winRate >= 60 ? "text-green-400" : "text-amber-400"}>{b.winRate}% win | {b.maineMarketShare}% share</span>
@@ -81,7 +81,7 @@ export default function BoardRoomPage() {
           <span className="text-sm font-semibold text-zinc-300">Competitive Risk Overlay — Maine Market</span>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          {mockBattlecards.map((b) => (
+          {mockBattlecardsOld.map((b) => (
             <div key={b.id} className="bg-zinc-950 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-medium text-white text-sm">{b.competitorName}</h4>

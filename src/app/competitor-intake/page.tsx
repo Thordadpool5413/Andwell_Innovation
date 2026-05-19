@@ -1,15 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Trash2, RefreshCw, CheckCircle, Clock, AlertCircle, MapPin, FileText } from "lucide-react"
+import { Plus, RefreshCw, CheckCircle, Clock, AlertCircle, MapPin, FileText, ExternalLink } from "lucide-react"
 import { mockCompetitors } from "@/lib/data"
-import type { Competitor, ScrapeResult } from "@/lib/types"
+import type { Competitor, CrawlResult } from "@/lib/types"
+import Link from "next/link"
 
 export default function CompetitorIntakePage() {
   const [competitors, setCompetitors] = useState<Competitor[]>(mockCompetitors)
   const [url, setUrl] = useState("")
   const [scraping, setScraping] = useState<string | null>(null)
-  const [results, setResults] = useState<Record<string, ScrapeResult>>({})
+  const [results, setResults] = useState<Record<string, CrawlResult>>({})
 
   const addCompetitor = async () => {
     if (!url.trim()) return
@@ -19,27 +20,30 @@ export default function CompetitorIntakePage() {
       id,
       name: name.charAt(0).toUpperCase() + name.slice(1),
       website: url,
-      url,
-      lastScraped: new Date().toISOString().split("T")[0],
-      status: "scraping",
-      mainePresence: "unknown",
+      addedAt: new Date().toISOString().split("T")[0],
+      lastCrawled: null,
+      status: "crawling",
+      maineCounties: [],
+      threatLevel: "low",
     }
     setCompetitors([...competitors, newComp])
     setUrl("")
     setScraping(id)
 
     try {
-      const res = await fetch("/api/competitors", {
+      const crawlRes = await fetch("/api/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, competitorId: id }),
       })
-      const data: ScrapeResult = await res.json()
-      setResults((prev) => ({ ...prev, [id]: data }))
+      const crawlData = await crawlRes.json()
+      const crawl = crawlData.crawl as CrawlResult
+
+      setResults((prev) => ({ ...prev, [id]: crawl }))
       setCompetitors((prev) =>
         prev.map((c) =>
           c.id === id
-            ? { ...c, status: "complete", mainePresence: data.countiesMentioned.length > 0 ? "yes" : "no", maineCounties: data.countiesMentioned }
+            ? { ...c, status: "complete", threatLevel: crawl.maineMentions.length > 0 ? "medium" : "low", lastCrawled: new Date().toISOString().split("T")[0] }
             : c
         )
       )
@@ -52,9 +56,18 @@ export default function CompetitorIntakePage() {
   const statusIcon = (s: Competitor["status"]) => {
     switch (s) {
       case "complete": return <CheckCircle className="w-4 h-4 text-green-400" />
-      case "scraping": return <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
+      case "crawling": return <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
       case "error": return <AlertCircle className="w-4 h-4 text-red-400" />
       default: return <Clock className="w-4 h-4 text-zinc-500" />
+    }
+  }
+
+  const threatColor = (t: string) => {
+    switch (t) {
+      case "critical": return "bg-red-900 text-red-300"
+      case "high": return "bg-orange-900 text-orange-300"
+      case "medium": return "bg-amber-900 text-amber-300"
+      default: return "bg-green-900 text-green-300"
     }
   }
 
@@ -87,19 +100,20 @@ export default function CompetitorIntakePage() {
                 <div className="flex items-start gap-4">
                   <div className="mt-1">{statusIcon(c.status)}</div>
                   <div>
-                    <h3 className="font-semibold text-white">{c.name}</h3>
-                    <p className="text-sm text-zinc-500">{c.website}</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-zinc-600">Last scraped: {c.lastScraped}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        c.mainePresence === "yes" ? "bg-green-900 text-green-300"
-                        : c.mainePresence === "no" ? "bg-red-900 text-red-300"
-                        : "bg-zinc-800 text-zinc-500"
-                      }`}>
-                        {c.mainePresence === "yes" ? "Maine presence" : c.mainePresence === "no" ? "No Maine presence" : "Unknown"}
+                    <div className="flex items-center gap-2">
+                      <Link href={`/competitors/${c.id}`} className="font-semibold text-white hover:text-blue-400 transition-colors">
+                        {c.name}
+                      </Link>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${threatColor(c.threatLevel)}`}>
+                        {c.threatLevel}
                       </span>
                     </div>
-                    {c.maineCounties && c.maineCounties.length > 0 && (
+                    <p className="text-sm text-zinc-500">{c.website}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-xs text-zinc-600">Added: {c.addedAt}</span>
+                      {c.lastCrawled && <span className="text-xs text-zinc-600">Crawled: {c.lastCrawled}</span>}
+                    </div>
+                    {c.maineCounties.length > 0 && (
                       <div className="flex items-center gap-1 mt-2 text-xs text-zinc-500">
                         <MapPin className="w-3 h-3" />
                         {c.maineCounties.join(", ")}
@@ -107,16 +121,19 @@ export default function CompetitorIntakePage() {
                     )}
                   </div>
                 </div>
-                <button className="text-zinc-600 hover:text-red-400 transition-colors p-1">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <Link
+                  href={`/competitors/${c.id}`}
+                  className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 mt-1"
+                >
+                  <ExternalLink className="w-3 h-3" /> Profile
+                </Link>
               </div>
 
               {result && (
                 <div className="border-t border-zinc-800 px-5 py-4 bg-zinc-950">
                   <div className="flex items-center gap-2 text-xs text-zinc-500 mb-3">
                     <FileText className="w-3.5 h-3.5" />
-                    AI Research Summary
+                    Crawl Results
                   </div>
                   <p className="text-sm text-zinc-300 mb-3">{result.summary}</p>
                   {result.servicesFound.length > 0 && (
@@ -128,7 +145,7 @@ export default function CompetitorIntakePage() {
                   {result.maineMentions.length > 0 && (
                     <div>
                       <span className="text-xs text-zinc-600">Maine mentions: </span>
-                      <span className="text-xs text-zinc-400">{result.maineMentions.length} found on their website</span>
+                      <span className="text-xs text-zinc-400">{result.maineMentions.length} found</span>
                     </div>
                   )}
                 </div>

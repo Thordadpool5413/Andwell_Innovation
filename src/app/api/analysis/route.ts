@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { mockEvidence, mockBattlecards, mockCompetitors } from "@/lib/data"
+import { mockEvidence, mockBattlecardsOld as mockBattlecards, mockCompetitors } from "@/lib/data"
 
 const SYSTEM_PROMPT = `You are Andwell Innovation Command Center, an AI competitive intelligence analyst for Andwell, a home healthcare company based in Maine.
 Your role is to analyze competitors, market data, and growth opportunities specific to Maine's healthcare market.
