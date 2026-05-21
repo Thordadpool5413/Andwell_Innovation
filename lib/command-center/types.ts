@@ -1,6 +1,6 @@
 import type { IntelligenceReport } from '../types';
 
-export type View = 'dashboard' | 'growth' | 'board' | 'launch' | 'expert' | 'ai' | 'prompt' | 'intake' | 'matrix' | 'battlecards' | 'reports' | 'ask' | 'catalog' | 'diagnostics';
+export type View = 'dashboard' | 'growth' | 'board' | 'launch' | 'expert' | 'ai' | 'prompt' | 'intake' | 'matrix' | 'battlecards' | 'reports' | 'ask' | 'catalog' | 'diagnostics' | 'growth-hub';
 export type RoleView = 'Executive' | 'Sales Leader' | 'Sales Rep' | 'Admin';
 export type MatrixFilter = 'all' | 'salesReady' | 'review' | 'advantage' | 'matched';
 export type ReportSummary = { id: string; generatedAt: string; competitorsAnalyzed: number; pagesReviewed: number; potentialAndwellAdvantages: number; humanReviewItems: number; competitors: string[]; executiveSummary: string };

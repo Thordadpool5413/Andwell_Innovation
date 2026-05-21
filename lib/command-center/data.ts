@@ -14,7 +14,8 @@ export const nav: { key: View; label: string; note: string }[] = [
   { key: 'reports', label: 'Reports', note: 'Stored intelligence' },
   { key: 'ask', label: 'Ask the Hub', note: 'Evidence based answers' },
   { key: 'catalog', label: 'Andwell Catalog', note: 'Baseline truth' },
-  { key: 'diagnostics', label: 'System Check', note: 'Deployment proof' }
+  { key: 'diagnostics', label: 'System Check', note: 'Deployment proof' },
+  { key: 'growth-hub', label: 'Growth Plan', note: 'Full growth dashboard' }
 ];
 
 export const roleGuidance: Record<RoleView, { headline: string; focus: string; action: string }> = {

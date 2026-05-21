@@ -2,16 +2,14 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { BarChart3, Grid3X3, Home, LayoutDashboard } from "lucide-react";
+import { Grid3X3, LayoutDashboard } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Command Center", icon: LayoutDashboard },
-  { href: "/growth-plan", label: "Growth Plan", icon: BarChart3 },
 ];
 
 export default function AppHeader() {
   const pathname = usePathname();
-  const isGrowthPlan = pathname?.startsWith("/growth-plan");
   const isCommandCenter = pathname === "/";
   const isHome = pathname === "/";
 
@@ -48,12 +46,6 @@ export default function AppHeader() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {isGrowthPlan && (
-              <a href="/" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all">
-                <Home className="w-3.5 h-3.5" />
-                <span>Home</span>
-              </a>
-            )}
             <a
               href="/"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600/10 text-blue-400 border border-blue-600/20 hover:bg-blue-600/20 transition-all"

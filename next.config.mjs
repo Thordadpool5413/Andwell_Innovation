@@ -9,6 +9,7 @@ const strictBuild = process.env.CIH_STRICT_BUILD === '1';
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  outputFileTracingRoot: __dirname,
   typescript: {
     ignoreBuildErrors: !strictBuild
   },
@@ -21,6 +22,11 @@ const nextConfig = {
       '@': __dirname
     };
     return config;
+  },
+  async redirects() {
+    return [
+      { source: '/growth-plan', destination: '/', permanent: true }
+    ];
   }
 };
 
