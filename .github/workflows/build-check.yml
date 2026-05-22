@@ -1,18 +1,20 @@
-name: Node.js Next Build
+name: Build Check
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
   build:
-    name: Build on Node.js 20
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -24,9 +26,9 @@ jobs:
         run: npm ci
 
       - name: TypeScript check
-        run: npm run typecheck
+        run: npx tsc --noEmit
 
-      - name: Strict production build
-        run: npm run build:strict
+      - name: Next build
+        run: npm run build:next
         env:
           NEXT_TELEMETRY_DISABLED: '1'

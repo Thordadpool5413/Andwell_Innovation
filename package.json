@@ -1,36 +1,43 @@
 {
-  "name": "andwell",
-  "version": "0.1.0",
+  "name": "andwell-innovation",
+  "version": "1.0.0",
   "private": true,
+  "description": "Andwell Innovation command center for competitive intelligence, growth planning, staffing, launch execution, and board-ready strategy.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "clean:next": "node scripts/clean-next.mjs",
+    "build": "npm run clean:next && next build",
+    "build:next": "npm run clean:next && next build",
+    "build:hostinger": "npm run build",
+    "build:strict": "npm run clean:next && cross-env CIH_STRICT_BUILD=1 next build",
+    "typecheck": "tsc --noEmit",
+    "start": "node app.js",
+    "serve": "node app.js",
+    "hostinger:start": "node app.js",
+    "start:hostinger": "node app.js"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
-    "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-tabs": "^1.1.13",
-    "@tailwindcss/postcss": "^4",
-    "@types/node-cron": "^3.0.11",
+    "@supabase/supabase-js": "^2.105.4",
+    "@tailwindcss/postcss": "^4.3.0",
+    "cheerio": "1.0.0",
     "lucide-react": "^1.16.0",
-    "next": "16.2.6",
-    "node-cron": "^4.2.1",
-    "openai": "^6.38.0",
-    "playwright": "^1.60.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "recharts": "^3.8.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "mongodb": "^6.0.0",
+    "next": "^15.5.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.6"
+    "cross-env": "^7.0.3",
+    "@types/node": "^20.17.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

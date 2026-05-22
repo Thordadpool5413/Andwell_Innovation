@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Andwell Innovation Command Center
 
-## Getting Started
+Andwell Innovation Command Center is a Hostinger-ready Node.js app for public-website competitive intelligence, review governance, AI-assisted field coaching, and executive reporting.
 
-First, run the development server:
+The app keeps the visible command center wired to real Next.js API routes. Supabase is the production source of truth when configured; MongoDB and local JSON remain fallback options for development and constrained hosting.
+
+## What Is Included
+
+- Executive dashboard with workspace status, recent scans, review queue, approved intelligence, and next recommended action
+- Public competitor source intake wired to `/api/analyze`
+- Review workflow for approving, editing, or rejecting evidence-backed findings
+- Intelligence library powered by stored reports and review decisions
+- AI Intelligence Coach powered by `/api/ask` and stored evidence
+- Executive report preview with readiness blockers and print support
+- Server-side APIs for analysis, competitors, reports, reviews, catalog, diagnostics, runtime, health, and version checks
+- Supabase production persistence, with MongoDB/local JSON fallback
+- Hostinger Node.js startup through `app.js`, which delegates to `server.js`
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production Build
 
-## Learn More
+```bash
+npm install
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+`npm run build` creates the optimized Next.js production build. `npm start` runs `app.js`, which delegates to `server.js` and launches Next on Hostinger's provided `PORT`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Hostinger Settings
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Use Node.js 20.x.
 
-## Deploy on Vercel
+Build command:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Start command:
+
+```bash
+npm start
+```
+
+Environment variables:
+
+```bash
+NODE_ENV=production
+CRAWL_MAX_PAGES_PER_SITE=24
+CRAWL_TIMEOUT_MS=12000
+CIH_DATA_DIR=.data
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+MONGODB_URI=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+ANALYZE_MAX_COMPETITORS=25
+ANALYZE_RATE_LIMIT=8
+ANALYZE_RATE_WINDOW_MS=900000
+```
+
+Let Hostinger manage `PORT`. Do not set `HOST` to the public domain.
+
+## GitHub To Hostinger
+
+1. In Hostinger, connect the website to `Thordadpool5413/Andwell_Innovation`.
+2. Use branch `main`.
+3. Use Node.js 20.x.
+4. Use `npm run build` as the build command.
+5. Use `npm start` as the start command. If Hostinger asks for a startup file, use `app.js`.
+6. Add the environment variables above.
+7. Deploy.
+
+After deployment, check:
+
+```bash
+/api/health
+/api/version
+/api/runtime
+/api/diagnostics
+/api/analyze
+```
+
+The API routes should return JSON. If an API route returns HTML, the site is not running as the Node.js Next server.
+
+## Safety Rule
+
+The competitive intelligence workflow uses public website evidence. It says "not found publicly" instead of claiming a competitor does not offer a service unless approved evidence supports that stronger statement.
