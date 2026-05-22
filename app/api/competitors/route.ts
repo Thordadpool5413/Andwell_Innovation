@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteCompetitor, readStore, saveCompetitors } from '../../../lib/store';
-import { isSafePublicTarget } from '../../../lib/crawler';
+import { parseAllowedHostPatterns, validatePublicHttpUrl } from '../../../lib/url-safety';
 import type { CompetitorInput } from '../../../lib/types';
 
 export const runtime = 'nodejs';
@@ -11,11 +11,11 @@ function normalizeUrl(url: string) {
 }
 
 function sanitizeCompetitor(competitor: CompetitorInput): CompetitorInput | null {
-  const url = normalizeUrl(competitor.url.trim());
-  if (!isSafePublicTarget(url)) return null;
+  const result = validatePublicHttpUrl(normalizeUrl(competitor.url.trim()), parseAllowedHostPatterns(process.env.CRAWL_ALLOWED_HOSTS));
+  if (!result.ok || !result.url) return null;
   return {
     ...competitor,
-    url,
+    url: result.url,
     name: competitor.name?.trim() || undefined,
     market: competitor.market?.trim() || 'Needs review',
     notes: competitor.notes?.slice(0, 1000)

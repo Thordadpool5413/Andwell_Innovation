@@ -16,7 +16,7 @@ Let Hostinger manage PORT.
 
 Current package scripts:
 
-build: next build
+build: npm run clean:next && next build
 start: node app.js
 
 `app.js` is the Hostinger-friendly entry file. It delegates to the custom `server.js`, which starts Next.js with Hostinger's provided `PORT` and binds to `0.0.0.0` by default. This avoids the 503 loop caused by Hostinger starting the wrong file or serving static fallback HTML instead of the Node.js app.
@@ -28,3 +28,5 @@ After deployment, verify these JSON endpoints:
 /api/runtime
 /api/diagnostics
 /api/analyze
+
+`/api/diagnostics` also reports stored workspace counts, latest report readiness, and source-health details so Hostinger deploys can be checked without opening the full app.

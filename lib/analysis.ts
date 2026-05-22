@@ -1,5 +1,6 @@
 import { andwellCatalog } from './andwell';
 import { buildExpertBrief } from './expert-engine';
+import { enrichReportIntelligence } from './intelligence-policy';
 import type { CompetitorAnalysis, CompetitorInput, Confidence, CrawledPage, ExecutiveInsight, Finding, IntelligenceReport, Status, SubserviceFinding, CompetitorScore, ThreatLevel } from './types';
 
 function norm(text: string) {
@@ -277,7 +278,7 @@ export function buildReport(analyses: CompetitorAnalysis[], crawlErrors: { url: 
   const humanReviewItems = allFindings.filter((f) => f.reviewStatus !== 'Sales usable with evidence').length + allSubserviceFindings.filter((f) => f.reviewStatus !== 'Sales usable with evidence').length;
   const topScore = [...competitorScores].sort((a, b) => b.andwellDifferentiationScore - a.andwellDifferentiationScore)[0];
   const expertBrief = buildExpertBrief(analyses, competitorScores, allFindings, allSubserviceFindings, humanReviewItems);
-  return {
+  return enrichReportIntelligence({
     id: `report_${Date.now()}`,
     generatedAt: new Date().toISOString(),
     baselineProvider: 'Andwell Health Partners',
@@ -296,5 +297,5 @@ export function buildReport(analyses: CompetitorAnalysis[], crawlErrors: { url: 
     allSubserviceFindings,
     crawlErrors,
     expertBrief
-  };
+  });
 }

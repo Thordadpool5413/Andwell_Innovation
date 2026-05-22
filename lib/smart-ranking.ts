@@ -1,4 +1,4 @@
-import type { Confidence, CrawledPage, ReviewStatus, Status } from './types';
+import type { Confidence, CrawledPage, EvidenceStrength, FieldRisk, RecommendedReviewAction, ReviewStatus, Status } from './types';
 
 export type EvidenceLike = {
   type?: string;
@@ -14,6 +14,10 @@ export type EvidenceLike = {
   safeSalesWording: string;
   avoidSaying?: string;
   reviewStatus: ReviewStatus;
+  evidenceStrength?: EvidenceStrength;
+  recommendedReviewAction?: RecommendedReviewAction;
+  reviewReason?: string;
+  fieldRisk?: FieldRisk;
 };
 
 const stopWords = new Set([

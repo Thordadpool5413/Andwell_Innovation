@@ -32,6 +32,8 @@ import {
   UploadCloud
 } from 'lucide-react';
 import type { CompetitorInput, Finding, IntelligenceReport, ReviewStatus, SubserviceFinding } from '../../lib/types';
+import { calculateReportReadiness, calculateStoredReadiness, isApprovedReviewStatus, isOpenReviewStatus } from '../../lib/intelligence-policy';
+import { validatePublicHttpUrl } from '../../lib/url-safety';
 import type { StoredReview } from '../../lib/store';
 import {
   askHub,
@@ -46,7 +48,7 @@ import {
   runAnalysis,
   saveReview
 } from './api';
-import type { AskResponse, CommandCenterState, ReportSummary, ReviewableFinding, TabId } from './model';
+import type { AskResponse, CommandCenterState, ReportSummary, ReviewableFinding, SourcePreviewItem, TabId } from './model';
 import { Badge, Button, Card, EmptyState, LoadingState, Metric, Notice, Progress, formatDate, number } from './ui';
 
 const initialState: CommandCenterState = {
@@ -82,25 +84,54 @@ const workflowSteps = [
 
 function parseSourceInput(value: string): CompetitorInput[] {
   return sourcePreview(value)
-    .filter((item) => item.valid)
-    .map((item) => ({ url: item.url }));
+    .filter((item) => item.valid && item.url)
+    .map((item) => ({ url: item.url as string }));
 }
 
 function sourcePreview(value: string) {
+  const seen = new Set<string>();
   return value
     .split(/[\n,]+/)
     .map((entry) => entry.trim())
     .filter(Boolean)
     .slice(0, 25)
-    .map((entry) => {
-      try {
-        const parsed = new URL(entry.startsWith('http://') || entry.startsWith('https://') ? entry : `https://${entry}`);
-        const host = parsed.hostname.toLowerCase();
-        const blocked = host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.lan');
-        return { raw: entry, url: parsed.toString(), valid: !blocked && ['http:', 'https:'].includes(parsed.protocol), host };
-      } catch {
-        return { raw: entry, url: entry, valid: false, host: entry };
+    .map((entry): SourcePreviewItem => {
+      const result = validatePublicHttpUrl(entry);
+      if (!result.ok || !result.url) {
+        return {
+          raw: entry,
+          input: entry,
+          url: result.url,
+          host: result.host,
+          valid: false,
+          status: 'rejected',
+          reason: result.reason,
+          qualityScore: 0
+        };
       }
+      if (seen.has(result.url)) {
+        return {
+          raw: entry,
+          input: entry,
+          url: result.url,
+          host: result.host,
+          valid: false,
+          status: 'duplicate',
+          reason: 'Duplicate source skipped.',
+          qualityScore: 35
+        };
+      }
+      seen.add(result.url);
+      return {
+        raw: entry,
+        input: entry,
+        url: result.url,
+        host: result.host,
+        valid: true,
+        status: 'accepted',
+        reason: result.reason,
+        qualityScore: result.url.startsWith('https://') ? 72 : 62
+      };
     });
 }
 
@@ -117,11 +148,11 @@ function effectiveStatus(item: Finding | SubserviceFinding, reviews: StoredRevie
 }
 
 function isApproved(status: ReviewStatus | 'Needs edits') {
-  return status === 'Approved for sales use' || status === 'Sales usable with evidence';
+  return isApprovedReviewStatus(status);
 }
 
 function isOpenReview(status: ReviewStatus | 'Needs edits') {
-  return !isApproved(status) && status !== 'Rejected';
+  return isOpenReviewStatus(status);
 }
 
 function reviewPriorityScore(item: ReviewableFinding) {
@@ -141,19 +172,13 @@ function priorityReviewItems(items: ReviewableFinding[]) {
 }
 
 function reportReadiness(reportCount: number, openReviewCount: number, approvedCount: number) {
-  if (!reportCount) return 0;
-  const evidenceScore = approvedCount ? 34 : 0;
-  const reviewScore = openReviewCount === 0 ? 36 : openReviewCount < 10 ? 22 : openReviewCount < 50 ? 12 : 6;
-  return Math.min(100, 30 + evidenceScore + reviewScore);
-}
-
-function readinessBlockers(report: IntelligenceReport | null, approvedCount: number, openReviewCount: number) {
-  const blockers: string[] = [];
-  if (!report) blockers.push('Run at least one competitor scan.');
-  if (report && !approvedCount) blockers.push('Approve at least one evidence-backed finding.');
-  if (openReviewCount > 0) blockers.push(`Resolve ${openReviewCount} open review item${openReviewCount === 1 ? '' : 's'}.`);
-  if (report?.crawlErrors?.length) blockers.push(`Review ${report.crawlErrors.length} crawl warning${report.crawlErrors.length === 1 ? '' : 's'}.`);
-  return blockers;
+  return calculateReportReadiness({
+    hasReport: Boolean(reportCount),
+    approvedEvidenceCount: approvedCount,
+    openReviewCount,
+    crawlWarningCount: 0,
+    sourceIssueCount: 0
+  }).score;
 }
 
 function toReviewable(report: IntelligenceReport | null, reviews: StoredReview[]): ReviewableFinding[] {
@@ -278,7 +303,17 @@ export default function CommandCenterApp() {
       .includes(query)).slice(0, 80);
   }, [approvedItems, search]);
 
-  const nextAction = currentNextAction({
+  const readiness = state.currentReport
+    ? calculateStoredReadiness(state.currentReport, { approvedEvidenceCount: approvedItems.length, openReviewCount: openReviewItems.length })
+    : calculateReportReadiness({
+      hasReport: false,
+      approvedEvidenceCount: approvedItems.length,
+      openReviewCount: openReviewItems.length,
+      crawlWarningCount: 0,
+      sourceIssueCount: 0,
+      aiEnabled: Boolean(state.analyzeHealth?.aiConfigured)
+    });
+  const nextAction = readiness.nextAction || currentNextAction({
     hasReport: Boolean(state.currentReport),
     openReviewCount: openReviewItems.length,
     approvedCount: approvedItems.length,
@@ -310,7 +345,8 @@ export default function CommandCenterApp() {
         currentReport: report,
         reviews: reviewsPayload.reviews
       }));
-      setScanMessage(`Scan complete. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} analyzed and ${report.humanReviewItems} review items created.`);
+      const sourceIssues = report.sourceHealth?.filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length || 0;
+      setScanMessage(`Scan complete. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} analyzed, ${report.humanReviewItems} review items created, and ${sourceIssues} source health issue${sourceIssues === 1 ? '' : 's'} flagged.`);
       setActiveTab('review');
     } catch (error) {
       setScanMessage(error instanceof Error ? error.message : 'The scan could not be completed.');
@@ -544,7 +580,17 @@ function Dashboard({
   const report = state.currentReport;
   const openPriority = priorityReviewItems(openReviewItems);
   const approvedPreview = approvedItems.slice(0, 3);
-  const readyScore = reportReadiness(state.reports.length, openReviewItems.length, approvedItems.length);
+  const readiness = report
+    ? calculateStoredReadiness(report, { approvedEvidenceCount: approvedItems.length, openReviewCount: openReviewItems.length })
+    : calculateReportReadiness({
+      hasReport: false,
+      approvedEvidenceCount: approvedItems.length,
+      openReviewCount: openReviewItems.length,
+      crawlWarningCount: 0,
+      sourceIssueCount: 0,
+      aiEnabled: Boolean(state.analyzeHealth?.aiConfigured)
+    });
+  const readyScore = readiness.score;
   const hasQueuedSources = parseSourceInput(sourceText).length > 0;
   const workflowState = {
     sources: state.competitors.length > 0 || hasQueuedSources,
@@ -609,6 +655,21 @@ function Dashboard({
               {report ? (openReviewItems.length ? 'Review Priority Items' : 'Ask AI Coach') : 'Upload Sources'}
             </Button>
             {report ? <Button onClick={() => onTab('report')}><FileText size={16} /> View Report</Button> : null}
+          </div>
+        </Card>
+
+        <Card title="Intelligence readiness" action={<Badge tone={readiness.status === 'Ready' ? 'green' : readiness.status === 'Draft' ? 'amber' : 'red'}>{readiness.status}</Badge>}>
+          <div className="cc-readiness-panel">
+            <Progress value={readyScore} tone={readyScore > 80 ? 'green' : readyScore > 45 ? 'amber' : 'blue'} />
+            <p>{readiness.nextAction}</p>
+          </div>
+          <div className="cc-compact-list">
+            {(readiness.blockers.length ? readiness.blockers : readiness.strengths).slice(0, 4).map((item) => (
+              <div key={item} className={readiness.blockers.length ? 'cc-blocker compact' : 'cc-blocker resolved compact'}>
+                {readiness.blockers.length ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                <span>{item}</span>
+              </div>
+            ))}
           </div>
         </Card>
 
@@ -775,8 +836,8 @@ function SourcesScreen({
             {preview.map((competitor) => (
               <div key={competitor.raw} className={`cc-source-card ${competitor.valid ? 'valid' : 'invalid'}`}>
                 {competitor.valid ? <Database size={18} /> : <AlertTriangle size={18} />}
-                <strong>{competitor.valid ? compactUrl(competitor.url) : competitor.raw}</strong>
-                <span>{competitor.valid ? 'Ready for server-side crawl validation.' : 'Skipped until this is a public http or https website.'}</span>
+                <strong>{competitor.valid && competitor.url ? compactUrl(competitor.url) : competitor.raw}</strong>
+                <span>{competitor.reason} Quality score: {competitor.qualityScore}.</span>
               </div>
             ))}
           </div>
@@ -784,6 +845,24 @@ function SourcesScreen({
           <EmptyState title="No sources queued" body="Paste up to 25 public competitor websites. Private IPs, localhost, and internal hostnames are blocked." />
         )}
       </Card>
+      {state.currentReport?.sourceHealth?.length ? (
+        <Card title="Latest scan source health" action={<Badge tone="blue">{state.currentReport.sourceHealth.length} checked</Badge>}>
+          <div className="cc-source-grid">
+            {state.currentReport.sourceHealth.map((source, index) => (
+              <div key={`${source.input}-${index}`} className={`cc-source-card ${source.status === 'crawled' || source.status === 'accepted' ? 'valid' : 'invalid'}`}>
+                {source.status === 'crawled' || source.status === 'accepted' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+                <div className="cc-source-card-head">
+                  <strong>{source.url ? compactUrl(source.url) : source.input}</strong>
+                  <Badge tone={source.status === 'crawled' ? 'green' : source.status === 'warning' ? 'amber' : source.status === 'duplicate' ? 'blue' : 'red'}>{source.status}</Badge>
+                </div>
+                <span>{source.reason}</span>
+                {source.error ? <small>{source.error}</small> : null}
+                <Progress value={source.qualityScore} tone={source.qualityScore > 70 ? 'green' : source.qualityScore > 35 ? 'amber' : 'red'} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
     </div>
   );
 }
@@ -860,10 +939,24 @@ function ReviewScreen({
                 <Badge tone={item.kind === 'service' ? 'blue' : 'teal'}>{item.kind}</Badge>
                 <Badge tone={toneForStatus(item.effectiveReviewStatus)}>{item.effectiveReviewStatus}</Badge>
                 <Badge tone={toneForStatus(item.competitorStatus)}>{item.competitorStatus}</Badge>
+                <Badge tone={item.recommendedReviewAction === 'Approve' ? 'green' : item.recommendedReviewAction === 'Edit' ? 'amber' : item.recommendedReviewAction === 'Reject' ? 'red' : 'blue'}>
+                  {item.recommendedReviewAction || 'Investigate'}
+                </Badge>
               </div>
               <h3>{item.serviceLine}{'subservice' in item ? `: ${item.subservice}` : ''}</h3>
               <p className="cc-muted">{item.competitorName} | {compactUrl(item.sourceUrl)}</p>
               <blockquote>{item.evidenceExcerpt}</blockquote>
+              <div className="cc-policy-row">
+                <span><strong>Evidence</strong>{item.evidenceStrength || 'Needs review'}</span>
+                <span><strong>Field risk</strong>{item.fieldRisk || 'Medium'}</span>
+                <span><strong>Decision</strong>{item.recommendedReviewAction || 'Investigate'}</span>
+              </div>
+              {item.reviewReason ? (
+                <Notice title="Why this recommendation" body={item.reviewReason} tone={item.fieldRisk === 'High' ? 'amber' : 'blue'} />
+              ) : null}
+              {!item.sourceUrl ? (
+                <Notice title="Missing source evidence" body="This finding should not become field language until a reliable public or approved internal source is attached." tone="red" />
+              ) : null}
               <div className="cc-guidance">
                 <strong>Safe field wording</strong>
                 <p>{item.safeSalesWording}</p>
@@ -928,6 +1021,7 @@ function LibraryScreen({
                   <th>Service</th>
                   <th>Status</th>
                   <th>Confidence</th>
+                  <th>Evidence</th>
                   <th>Safe wording</th>
                 </tr>
               </thead>
@@ -938,6 +1032,7 @@ function LibraryScreen({
                     <td><strong>{item.serviceLine}</strong>{'subservice' in item ? <span>{item.subservice}</span> : null}</td>
                     <td><Badge tone={toneForStatus(item.competitorStatus)}>{item.competitorStatus}</Badge></td>
                     <td>{item.confidence}</td>
+                    <td><Badge tone={item.evidenceStrength === 'Strong' ? 'green' : item.evidenceStrength === 'Moderate' ? 'blue' : item.evidenceStrength === 'Weak' ? 'amber' : 'red'}>{item.evidenceStrength || 'Needs review'}</Badge></td>
                     <td>{item.safeSalesWording}</td>
                   </tr>
                 ))}
@@ -1140,8 +1235,9 @@ function CoachScreen({
 
 function ReportScreen({ report, approvedItems, openReviewCount }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[]; openReviewCount: number }) {
   if (!report) return <EmptyState title="No executive report yet" body="Run a scan to generate a board-ready report preview." />;
-  const blockers = readinessBlockers(report, approvedItems.length, openReviewCount);
-  const ready = blockers.length === 0;
+  const readiness = calculateStoredReadiness(report, { approvedEvidenceCount: approvedItems.length, openReviewCount });
+  const blockers = readiness.blockers;
+  const ready = readiness.status === 'Ready';
   const approvedServices = Array.from(new Set(approvedItems.map((item) => item.serviceLine))).slice(0, 6);
   const reportTone = ready ? 'green' : blockers.length > 2 ? 'red' : 'amber';
 
@@ -1154,9 +1250,9 @@ function ReportScreen({ report, approvedItems, openReviewCount }: { report: Inte
       >
         <div className="cc-metric-grid">
           <Metric label="Report status" value={ready ? 'Ready' : 'Blocked'} detail={ready ? 'No blockers open' : `${blockers.length} blocker${blockers.length === 1 ? '' : 's'} remain`} tone={reportTone} />
+          <Metric label="Readiness score" value={`${readiness.score}%`} detail={readiness.status} tone={reportTone} />
           <Metric label="Approved evidence" value={approvedItems.length} detail="Can be used in report" tone="green" />
           <Metric label="Human review" value={openReviewCount} detail="Must be resolved" tone={openReviewCount ? 'red' : 'green'} />
-          <Metric label="Generated" value={formatDate(report.generatedAt)} detail="Latest report" tone="blue" />
         </div>
         <div className="cc-report-actions">
           <div className="cc-blocker-list">
@@ -1171,6 +1267,19 @@ function ReportScreen({ report, approvedItems, openReviewCount }: { report: Inte
             body={ready ? 'The report has approved evidence and no open review blockers.' : 'The preview remains available, but unresolved review items should be cleared before leadership or field use.'}
             tone={ready ? 'green' : 'amber'}
           />
+          {report.recommendedActions?.length ? (
+            <div className="cc-compact-list">
+              {report.recommendedActions.slice(0, 4).map((action) => (
+                <div key={action.id} className="cc-list-item">
+                  <Sparkles size={17} />
+                  <div>
+                    <strong>{action.label}</strong>
+                    <p>{action.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </Card>
       <section className="cc-report-preview">
@@ -1232,6 +1341,18 @@ function ReportScreen({ report, approvedItems, openReviewCount }: { report: Inte
               <article key={error.url}>
                 <strong>{compactUrl(error.url)}</strong>
                 <p>{error.error}</p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {report.sourceHealth?.length ? (
+          <div className="cc-report-section">
+            <h3>Source health</h3>
+            {report.sourceHealth.map((source, index) => (
+              <article key={`${source.input}-${index}`}>
+                <strong>{source.url ? compactUrl(source.url) : source.input}</strong>
+                <p>{source.status}: {source.reason}</p>
+                <small>Quality score: {source.qualityScore}{source.pagesReviewed !== undefined ? ` | Pages reviewed: ${source.pagesReviewed}` : ''}</small>
               </article>
             ))}
           </div>
@@ -1362,9 +1483,14 @@ function FindingEvidence({ evidence }: { evidence: AskResponse['evidence'] }) {
     <div className="cc-evidence-grid">
       {evidence.slice(0, 6).map((item, index) => (
         <article key={`${item.competitorName}-${item.serviceLine}-${index}`} className="cc-evidence">
-          <Badge tone={toneForStatus(item.status)}>{item.status}</Badge>
+          <div className="cc-finding-head">
+            <Badge tone={toneForStatus(item.status)}>{item.status}</Badge>
+            {item.evidenceStrength ? <Badge tone={item.evidenceStrength === 'Strong' ? 'green' : item.evidenceStrength === 'Moderate' ? 'blue' : item.evidenceStrength === 'Weak' ? 'amber' : 'red'}>{item.evidenceStrength}</Badge> : null}
+            {item.fieldRisk ? <Badge tone={item.fieldRisk === 'Low' ? 'green' : item.fieldRisk === 'Medium' ? 'amber' : 'red'}>{item.fieldRisk} risk</Badge> : null}
+          </div>
           <h4>{item.competitorName} | {item.serviceLine}{item.subservice ? ` | ${item.subservice}` : ''}</h4>
           <p>{item.evidenceExcerpt}</p>
+          {item.reviewReason ? <p>{item.reviewReason}</p> : null}
           <small>{compactUrl(item.sourceUrl)}</small>
         </article>
       ))}

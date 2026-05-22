@@ -444,6 +444,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .cc-progress-green { background: var(--cc-green); }
 .cc-progress-amber { background: var(--cc-amber); }
 .cc-progress-teal { background: var(--cc-teal); }
+.cc-progress-red { background: var(--cc-red); }
 
 .cc-step-list { display: grid; gap: 10px; margin-bottom: 14px; }
 .cc-step { display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 10px; align-items: center; }
@@ -467,6 +468,14 @@ button { -webkit-tap-highlight-color: transparent; }
 .cc-source-card.valid svg { color: var(--cc-green); }
 .cc-source-card.invalid { border-color: #efc3bd; background: #fff6f4; }
 .cc-source-card.invalid svg { color: var(--cc-red); }
+.cc-source-card small { color: var(--cc-muted); line-height: 1.45; }
+.cc-source-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cc-source-card-head strong { min-width: 0; overflow-wrap: anywhere; }
 .cc-score-card h3 { margin-top: 4px; }
 
 .cc-review-summary {
@@ -537,6 +546,31 @@ button { -webkit-tap-highlight-color: transparent; }
   display: inline-flex;
   gap: 6px;
   align-items: flex-start;
+}
+.cc-policy-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.cc-policy-row span {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--cc-soft);
+  border-radius: var(--cc-radius);
+  background: #fbfdff;
+  color: var(--cc-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.cc-policy-row strong {
+  color: var(--cc-ink);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
 }
 .cc-inline-link {
   min-height: 40px;
@@ -680,11 +714,17 @@ button { -webkit-tap-highlight-color: transparent; }
   font-weight: 800;
   line-height: 1.4;
 }
+.cc-blocker.compact {
+  margin: 0;
+  padding: 9px;
+  font-size: 13px;
+}
 .cc-blocker.resolved {
   color: #0f6b4d;
   border-color: #bce8d8;
   background: #effcf7;
 }
+.cc-compact-list { display: grid; gap: 9px; }
 .cc-report-cover {
   display: flex;
   justify-content: space-between;
@@ -817,6 +857,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .cc-priority-item .cc-badge { grid-column: 2; justify-self: start; }
   .cc-review-summary { grid-template-columns: 1fr 1fr; }
   .cc-review-grid { grid-template-columns: 1fr; }
+  .cc-policy-row { grid-template-columns: 1fr; }
   .cc-card { padding: 16px; }
   .cc-report-cover { flex-direction: column; padding: 24px; }
   .cc-report-cover h2 { font-size: 31px; }

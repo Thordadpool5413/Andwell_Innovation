@@ -161,38 +161,8 @@ export async function readStore(): Promise<HubStore> {
 
 export async function writeStore(store: HubStore) {
   if (isSupabaseConfigured() && !supabaseUnavailable) {
-    try {
-      const supabase = getSupabaseClient();
-      const [competitorsDelete, reportsDelete, reviewsDelete, catalogDelete] = await Promise.all([
-        supabase.from('cih_competitors').delete().neq('url', '__cih_never__'),
-        supabase.from('cih_reports').delete().neq('id', '__cih_never__'),
-        supabase.from('cih_reviews').delete().neq('finding_id', '__cih_never__'),
-        supabase.from('cih_catalog_overrides').delete().neq('service_line', '__cih_never__')
-      ]);
-
-      assertSupabase('delete competitors', competitorsDelete.error);
-      assertSupabase('delete reports', reportsDelete.error);
-      assertSupabase('delete reviews', reviewsDelete.error);
-      assertSupabase('delete catalog overrides', catalogDelete.error);
-
-      const [competitorsInsert, reportsInsert, reviewsInsert, catalogInsert] = await Promise.all([
-        store.competitors.length ? supabase.from('cih_competitors').insert(store.competitors.filter((competitor) => competitor.url).map(competitorRow)) : Promise.resolve({ error: null }),
-        store.reports.length ? supabase.from('cih_reports').insert(store.reports.map(reportRow)) : Promise.resolve({ error: null }),
-        store.reviews.length ? supabase.from('cih_reviews').insert(store.reviews.map(reviewRow)) : Promise.resolve({ error: null }),
-        store.catalogOverrides.length ? supabase.from('cih_catalog_overrides').insert(store.catalogOverrides.map(catalogOverrideRow)) : Promise.resolve({ error: null })
-      ]);
-
-      assertSupabase('insert competitors', competitorsInsert.error);
-      assertSupabase('insert reports', reportsInsert.error);
-      assertSupabase('insert reviews', reviewsInsert.error);
-      assertSupabase('insert catalog overrides', catalogInsert.error);
-
-      return { ...store, updatedAt: new Date().toISOString() };
-    } catch (error) {
-      supabaseUnavailable = true;
-      logPersistenceFallback('Supabase', error);
-      return jsonWriteStore(store);
-    }
+    console.warn('Full-store Supabase overwrite is disabled. Use targeted saveCompetitors, saveReport, saveReview, or saveCatalogOverride instead. Writing local JSON fallback only.');
+    return jsonWriteStore(store);
   }
 
   if (!isMongoConfigured() || mongoUnavailable) return jsonWriteStore(store);

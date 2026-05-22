@@ -4,6 +4,9 @@ export type ReviewStatus = 'Sales usable with evidence' | 'Manager review sugges
 export type ThreatLevel = 'Low overlap' | 'Moderate overlap' | 'High overlap' | 'Strategic threat';
 export type ExpertPriority = 'Critical' | 'High' | 'Medium' | 'Low';
 export type ExpertAudience = 'CEO' | 'COO' | 'Sales Leader' | 'Sales Rep' | 'Admin' | 'Marketing' | 'Clinical Leader';
+export type EvidenceStrength = 'Strong' | 'Moderate' | 'Weak' | 'Missing';
+export type RecommendedReviewAction = 'Approve' | 'Edit' | 'Reject' | 'Investigate';
+export type FieldRisk = 'Low' | 'Medium' | 'High';
 
 export type CrawledPage = {
   url: string;
@@ -17,6 +20,17 @@ export type CompetitorInput = {
   url: string;
   market?: string;
   notes?: string;
+};
+
+export type SourceHealth = {
+  input: string;
+  url?: string;
+  host?: string;
+  status: 'accepted' | 'duplicate' | 'rejected' | 'skipped' | 'warning' | 'crawled';
+  reason: string;
+  qualityScore: number;
+  pagesReviewed?: number;
+  error?: string;
 };
 
 export type AIServiceLineDepth = {
@@ -91,6 +105,10 @@ export type SubserviceFinding = {
   safeSalesWording: string;
   avoidSaying: string;
   reviewStatus: ReviewStatus;
+  evidenceStrength?: EvidenceStrength;
+  recommendedReviewAction?: RecommendedReviewAction;
+  reviewReason?: string;
+  fieldRisk?: FieldRisk;
 };
 
 export type Finding = {
@@ -111,6 +129,10 @@ export type Finding = {
   safeSalesWording: string;
   avoidSaying: string;
   reviewStatus: ReviewStatus;
+  evidenceStrength?: EvidenceStrength;
+  recommendedReviewAction?: RecommendedReviewAction;
+  reviewReason?: string;
+  fieldRisk?: FieldRisk;
   subserviceFindings: SubserviceFinding[];
   clearlyMatchedSubservices: number;
   totalSubservices: number;
@@ -205,6 +227,26 @@ export type ExpertBrief = {
   watchlist: ExpertWatchItem[];
 };
 
+export type ReportReadiness = {
+  score: number;
+  status: 'Ready' | 'Draft' | 'Blocked';
+  blockers: string[];
+  strengths: string[];
+  nextAction: string;
+  approvedEvidenceCount: number;
+  openReviewCount: number;
+  crawlWarningCount: number;
+  sourceIssueCount: number;
+};
+
+export type RecommendedAction = {
+  id: string;
+  label: string;
+  detail: string;
+  target: 'sources' | 'review' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
+  priority: 'High' | 'Medium' | 'Low';
+};
+
 export type IntelligenceReport = {
   id: string;
   generatedAt: string;
@@ -226,5 +268,10 @@ export type IntelligenceReport = {
   aiEnabled?: boolean;
   aiModel?: string;
   aiLeadershipSummary?: string;
+  analysisConcurrency?: number;
+  crawlMaxPagesPerSite?: number;
   expertBrief?: ExpertBrief;
+  sourceHealth?: SourceHealth[];
+  readiness?: ReportReadiness;
+  recommendedActions?: RecommendedAction[];
 };

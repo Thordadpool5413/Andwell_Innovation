@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { crawlSite } from '../../../lib/crawler';
 import { analyzeCompetitor, buildReport } from '../../../lib/analysis';
 import { extractCompetitorIntelligence, isAIExtractionConfigured } from '../../../lib/ai-extractor';
+import { enrichReportIntelligence } from '../../../lib/intelligence-policy';
 import { saveReport } from '../../../lib/store';
 import { rateLimit, requestIp } from '../../../lib/rate-limit';
-import type { CompetitorAnalysis, CompetitorInput, CrawledPage } from '../../../lib/types';
+import { parseAllowedHostPatterns, validatePublicHttpUrl } from '../../../lib/url-safety';
+import type { CompetitorAnalysis, CompetitorInput, CrawledPage, SourceHealth } from '../../../lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,80 +17,97 @@ type AnalyzeResult = {
   aiError?: { url: string; error: string };
 };
 
-function cleanHost(hostname: string) {
-  return hostname.toLowerCase().trim().replace(/^\[/, '').replace(/\]$/, '').replace(/\.$/, '');
+function sourceQualityScore(url: string) {
+  const parsed = new URL(url);
+  let score = parsed.protocol === 'https:' ? 72 : 62;
+  if (parsed.pathname && parsed.pathname !== '/') score += 8;
+  if (parsed.hostname.startsWith('www.')) score += 2;
+  return Math.min(100, score);
 }
 
-function blockedIPv4(host: string) {
-  const parts = cleanHost(host).split('.').map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-  const [a, b] = parts;
-  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
-}
+function diagnoseCompetitorInputs(items: CompetitorInput[], limit: number) {
+  const patterns = parseAllowedHostPatterns(process.env.CRAWL_ALLOWED_HOSTS);
+  const seen = new Set<string>();
+  const competitors: CompetitorInput[] = [];
+  const sourceHealth: SourceHealth[] = [];
 
-function blockedIPv6(host: string) {
-  const value = cleanHost(host);
-  if (!value.includes(':')) return false;
-  if (value.includes('%')) return true;
-  if (value === '::' || value === '::1' || value === '0:0:0:0:0:0:0:1') return true;
-  if (/^fe[89ab]/i.test(value)) return true;
-  if (/^f[cd]/i.test(value)) return true;
-  const mapped = value.match(/(?:^|:)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)?.[1];
-  return mapped ? blockedIPv4(mapped) : false;
-}
-
-function toSafePublicHttpUrl(rawUrl: string): string | null {
-  try {
-    const candidate = rawUrl.trim();
-    if (!candidate) return null;
-    const parsed = new URL(candidate.startsWith('http://') || candidate.startsWith('https://') ? candidate : `https://${candidate}`);
-    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
-    if (parsed.username || parsed.password) return null;
-    const host = cleanHost(parsed.hostname);
-    if (!host || host === 'localhost') return null;
-    if (host.endsWith('.local') || host.endsWith('.localhost') || host.endsWith('.internal') || host.endsWith('.lan') || host.endsWith('.home') || host.endsWith('.corp') || host.endsWith('.test')) return null;
-    if (blockedIPv4(host) || blockedIPv6(host)) return null;
-    parsed.hash = '';
-    parsed.username = '';
-    parsed.password = '';
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
-
-function getAllowedHostPatterns(): string[] {
-  return (process.env.CRAWL_ALLOWED_HOSTS || '')
-    .split(',')
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function matchesAllowedHost(hostname: string, patterns: string[]): boolean {
-  const host = hostname.toLowerCase();
-  return patterns.some((pattern) => {
-    if (pattern.startsWith('*.')) {
-      const suffix = pattern.slice(2);
-      return host === suffix || host.endsWith(`.${suffix}`);
+  items.forEach((item, index) => {
+    const rawUrl = item.url || '';
+    if (!rawUrl.trim()) return;
+    if (index >= limit) {
+      sourceHealth.push({
+        input: rawUrl,
+        status: 'skipped',
+        reason: `Skipped because this scan accepts up to ${limit} competitor source${limit === 1 ? '' : 's'}.`,
+        qualityScore: 0
+      });
+      return;
     }
-    return host === pattern;
+
+    const result = validatePublicHttpUrl(rawUrl, patterns);
+    if (!result.ok || !result.url) {
+      sourceHealth.push({
+        input: rawUrl,
+        host: result.host,
+        status: 'rejected',
+        reason: result.reason,
+        qualityScore: 0
+      });
+      return;
+    }
+
+    if (seen.has(result.url)) {
+      sourceHealth.push({
+        input: rawUrl,
+        url: result.url,
+        host: result.host,
+        status: 'duplicate',
+        reason: 'Duplicate source skipped so the scan does not spend time crawling the same website twice.',
+        qualityScore: 35
+      });
+      return;
+    }
+
+    seen.add(result.url);
+    competitors.push({ ...item, url: result.url });
+    sourceHealth.push({
+      input: rawUrl,
+      url: result.url,
+      host: result.host,
+      status: 'accepted',
+      reason: result.reason,
+      qualityScore: sourceQualityScore(result.url)
+    });
   });
+
+  return { competitors, sourceHealth };
 }
 
-function sanitizeCompetitorInput(item: CompetitorInput): CompetitorInput | null {
-  const safeUrl = toSafePublicHttpUrl(item.url || '');
-  if (!safeUrl) return null;
-
-  const patterns = getAllowedHostPatterns();
-  if (patterns.length) {
-    const host = new URL(safeUrl).hostname.toLowerCase();
-    if (!matchesAllowedHost(host, patterns)) return null;
-  }
-
-  return {
-    ...item,
-    url: safeUrl
-  };
+function mergeCrawlSourceHealth(sourceHealth: SourceHealth[], analyses: CompetitorAnalysis[], crawlErrors: { url: string; error: string }[]) {
+  const pagesByUrl = new Map(analyses.map((analysis) => [analysis.url, analysis.pagesReviewed.length]));
+  const errorsByUrl = new Map(crawlErrors.map((error) => [error.url, error.error]));
+  return sourceHealth.map((source) => {
+    if (!source.url || (source.status !== 'accepted' && source.status !== 'crawled')) return source;
+    const error = errorsByUrl.get(source.url);
+    if (error) {
+      return {
+        ...source,
+        status: 'warning' as const,
+        reason: 'The source was accepted, but crawling produced a warning.',
+        error,
+        pagesReviewed: pagesByUrl.get(source.url) || 0,
+        qualityScore: Math.min(source.qualityScore, 42)
+      };
+    }
+    const pagesReviewed = pagesByUrl.get(source.url) || 0;
+    return {
+      ...source,
+      status: 'crawled' as const,
+      reason: pagesReviewed ? `${pagesReviewed} public page${pagesReviewed === 1 ? '' : 's'} reviewed.` : 'The source was accepted but produced limited readable content.',
+      pagesReviewed,
+      qualityScore: Math.min(100, source.qualityScore + Math.min(18, pagesReviewed * 3))
+    };
+  });
 }
 
 function applyAIEnhancement(analysis: CompetitorAnalysis, aiExtraction: NonNullable<CompetitorAnalysis['aiExtraction']>): CompetitorAnalysis {
@@ -183,7 +202,7 @@ export async function GET() {
     analyzeConcurrency: analyzeConcurrency(aiConfigured),
     crawlMaxPagesPerSiteLimit: crawlMaxPagesLimit(),
     maxCompetitorsPerScan: maxCompetitorsLimit(),
-    urlValidation: 'enabled at request boundary and crawler boundary',
+    urlValidation: 'shared public URL safety policy at request, competitor, and crawler boundaries',
     message: aiConfigured
       ? 'Analyze API route is active with OpenAI extraction enabled and maximum speed parallel processing.'
       : 'Analyze API route is active. OpenAI extraction is not enabled because OPENAI_API_KEY is missing.',
@@ -204,14 +223,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json() as { competitors?: CompetitorInput[]; maxPagesPerSite?: number; save?: boolean; useAI?: boolean };
-    const rawCompetitors = (body.competitors || []).filter((item) => item.url?.trim()).slice(0, maxCompetitorsLimit());
-    const competitors = rawCompetitors
-      .map(sanitizeCompetitorInput)
-      .filter((item): item is CompetitorInput => Boolean(item));
+    const { competitors, sourceHealth } = diagnoseCompetitorInputs(body.competitors || [], maxCompetitorsLimit());
 
     if (!competitors.length) {
       return NextResponse.json({
-        error: 'Add at least one valid public competitor URL. Only public http or https URLs are allowed. Localhost, private IPs, link-local addresses, internal hostnames, and credentialed URLs are blocked.'
+        error: 'Add at least one valid public competitor URL. Only public http or https URLs are allowed. Localhost, private IPs, link-local addresses, internal hostnames, and credentialed URLs are blocked.',
+        sourceHealth
       }, { status: 400 });
     }
 
@@ -254,9 +271,10 @@ export async function POST(req: NextRequest) {
     const analyses = results.map((item) => item.analysis);
     const crawlErrors = results.map((item) => item.crawlError).filter((item): item is NonNullable<AnalyzeResult['crawlError']> => Boolean(item));
     const aiErrors = results.map((item) => item.aiError).filter((item): item is NonNullable<AnalyzeResult['aiError']> => Boolean(item));
+    const finalSourceHealth = mergeCrawlSourceHealth(sourceHealth, analyses, crawlErrors);
     const report = buildReport(analyses, [...crawlErrors, ...aiErrors.map((item) => ({ url: item.url, error: `AI extraction: ${item.error}` }))]);
     const aiSummaries = analyses.map((analysis) => analysis.aiExtraction?.leadershipSummary).filter(Boolean);
-    const enhancedReport = {
+    const enhancedReport = enrichReportIntelligence({
       ...report,
       aiEnabled: shouldUseAI,
       aiModel: process.env.OPENAI_MODEL || 'gpt-4.1-nano',
@@ -266,7 +284,7 @@ export async function POST(req: NextRequest) {
       executiveSummary: aiSummaries.length
         ? `${report.executiveSummary}\n\nAI leadership summary: ${aiSummaries.join(' ')}`
         : report.executiveSummary
-    };
+    }, finalSourceHealth);
 
     if (body.save !== false) await saveReport(enhancedReport);
     return NextResponse.json(enhancedReport);

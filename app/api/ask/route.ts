@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { enrichReportIntelligence } from '../../../lib/intelligence-policy';
 import { readStore } from '../../../lib/store';
 import { fieldActionFromEvidence, questionTerms, rankEvidenceForQuestion, type EvidenceLike } from '../../../lib/smart-ranking';
 
@@ -28,16 +29,21 @@ export async function POST(req: NextRequest) {
   const latest = reports[0];
   if (!latest) {
     return NextResponse.json({
-      answer: 'No stored intelligence report was found yet. Run a competitor analysis first, then ask again.',
+      answer: 'No stored intelligence report was found yet. Start by adding public competitor websites and running an intelligence scan. After the scan, approve at least one evidence-backed finding so the coach can answer from trusted intelligence.',
       evidence: [],
       confidence: 'Needs review',
-      nextBestActions: []
+      nextBestActions: [
+        'Open Sources and add one or more public competitor websites.',
+        'Run an intelligence scan.',
+        'Approve strong evidence in the Review queue before using field language.'
+      ]
     });
   }
 
+  const activeReport = enrichReportIntelligence(latest, latest.sourceHealth || []);
   const terms = questionTerms(question);
-  const serviceItems: HubEvidenceItem[] = latest.allFindings.map((finding) => ({ type: 'service', ...finding }));
-  const subserviceItems: HubEvidenceItem[] = latest.allSubserviceFindings.map((finding) => ({ type: 'subservice', ...finding }));
+  const serviceItems: HubEvidenceItem[] = activeReport.allFindings.map((finding) => ({ type: 'service', ...finding }));
+  const subserviceItems: HubEvidenceItem[] = activeReport.allSubserviceFindings.map((finding) => ({ type: 'subservice', ...finding }));
   const allItems: HubEvidenceItem[] = [...serviceItems, ...subserviceItems];
 
   const candidateItems = allItems
@@ -49,6 +55,21 @@ export async function POST(req: NextRequest) {
     });
 
   const ranked = rankEvidenceForQuestion(candidateItems, question).slice(0, 12);
+  if (!ranked.length) {
+    const readiness = activeReport.readiness;
+    return NextResponse.json({
+      answer: `I could not find stored evidence that matches this question in the latest report from ${new Date(activeReport.generatedAt).toLocaleString()}. Ask about a competitor, service line, or approved finding already in the report, or run a new scan with sources that cover this topic. ${readiness?.nextAction || ''}`.trim(),
+      confidence: 'Needs review',
+      reportId: activeReport.id,
+      questionTerms: terms,
+      nextBestActions: [
+        'Search the Intelligence Library for the exact competitor or service line.',
+        'Run a new scan with a source page that directly covers this topic.',
+        'Approve relevant findings before using coach language in the field.'
+      ],
+      evidence: []
+    });
+  }
   const potentialAdvantages = ranked.filter((item) => item.competitorStatus !== 'Clearly offered').slice(0, 5);
   const matches = ranked.filter((item) => item.competitorStatus === 'Clearly offered').slice(0, 5);
   const reviewItems = ranked.filter((item) => item.reviewStatus !== 'Sales usable with evidence' && item.reviewStatus !== 'Approved for sales use').slice(0, 5);
@@ -56,7 +77,7 @@ export async function POST(req: NextRequest) {
   const nextBestActions = topEvidence.map(fieldActionFromEvidence);
 
   const answerParts = [];
-  answerParts.push(`Based on the latest stored report from ${new Date(latest.generatedAt).toLocaleString()}, I found ${ranked.length} relevant finding${ranked.length === 1 ? '' : 's'} and ranked them by question fit, evidence strength, confidence, source quality, and sales usability.`);
+  answerParts.push(`Based on the latest stored report from ${new Date(activeReport.generatedAt).toLocaleString()}, I found ${ranked.length} relevant finding${ranked.length === 1 ? '' : 's'} and ranked them by question fit, evidence strength, confidence, source quality, and sales usability.`);
   if (topEvidence.length) {
     answerParts.push(`Top evidence: ${topEvidence.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''} | ${item.competitorStatus}`).join('; ')}.`);
   }
@@ -69,7 +90,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     answer: answerParts.join(' '),
     confidence: reviewItems.length ? 'Manager review suggested' : 'Evidence backed',
-    reportId: latest.id,
+    reportId: activeReport.id,
     questionTerms: terms,
     nextBestActions,
     evidence: ranked.map((item) => ({
@@ -85,6 +106,10 @@ export async function POST(req: NextRequest) {
       evidenceExcerpt: item.evidenceExcerpt,
       safeSalesWording: item.safeSalesWording,
       reviewStatus: item.reviewStatus,
+      evidenceStrength: item.evidenceStrength,
+      recommendedReviewAction: item.recommendedReviewAction,
+      reviewReason: item.reviewReason,
+      fieldRisk: item.fieldRisk,
       recommendedAction: fieldActionFromEvidence(item)
     }))
   });

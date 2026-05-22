@@ -1,4 +1,4 @@
-import type { CompetitorInput, Finding, IntelligenceReport, ReviewStatus, SubserviceFinding } from '../../lib/types';
+import type { CompetitorInput, EvidenceStrength, FieldRisk, Finding, IntelligenceReport, RecommendedReviewAction, ReviewStatus, SourceHealth, SubserviceFinding } from '../../lib/types';
 import type { CatalogOverride, StoredReview } from '../../lib/store';
 
 export type TabId = 'dashboard' | 'sources' | 'review' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
@@ -79,6 +79,10 @@ export type AskResponse = {
     evidenceExcerpt: string;
     safeSalesWording: string;
     reviewStatus: ReviewStatus;
+    evidenceStrength?: EvidenceStrength;
+    recommendedReviewAction?: RecommendedReviewAction;
+    reviewReason?: string;
+    fieldRisk?: FieldRisk;
     recommendedAction: string;
   }>;
 };
@@ -104,4 +108,9 @@ export type ReviewableFinding = (Finding | SubserviceFinding) & {
 export type ScanResult = {
   report: IntelligenceReport;
   warnings: string[];
+};
+
+export type SourcePreviewItem = SourceHealth & {
+  raw: string;
+  valid: boolean;
 };
