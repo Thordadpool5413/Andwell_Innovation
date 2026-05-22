@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const strictBuild = process.env.CIH_STRICT_BUILD === '1';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -11,10 +10,10 @@ const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
   typescript: {
-    ignoreBuildErrors: !strictBuild
+    ignoreBuildErrors: false
   },
   eslint: {
-    ignoreDuringBuilds: !strictBuild
+    ignoreDuringBuilds: false
   },
   webpack: (config) => {
     config.resolve.alias = {
@@ -24,9 +23,7 @@ const nextConfig = {
     return config;
   },
   async redirects() {
-    return [
-      { source: '/growth-plan', destination: '/', permanent: true }
-    ];
+    return [{ source: '/growth-plan', destination: '/', permanent: true }];
   }
 };
 

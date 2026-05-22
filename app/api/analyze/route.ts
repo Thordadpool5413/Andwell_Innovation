@@ -3,6 +3,7 @@ import { crawlSite } from '../../../lib/crawler';
 import { analyzeCompetitor, buildReport } from '../../../lib/analysis';
 import { extractCompetitorIntelligence, isAIExtractionConfigured } from '../../../lib/ai-extractor';
 import { saveReport } from '../../../lib/store';
+import { rateLimit, requestIp } from '../../../lib/rate-limit';
 import type { CompetitorAnalysis, CompetitorInput, CrawledPage } from '../../../lib/types';
 
 export const runtime = 'nodejs';
@@ -143,6 +144,20 @@ function crawlMaxPagesLimit() {
   return Math.max(4, Math.min(35, Math.floor(requested)));
 }
 
+function maxCompetitorsLimit() {
+  const requested = Number(process.env.ANALYZE_MAX_COMPETITORS || 25);
+  if (!Number.isFinite(requested)) return 25;
+  return Math.max(1, Math.min(25, Math.floor(requested)));
+}
+
+function assertRequestSize(req: NextRequest) {
+  const contentLength = Number(req.headers.get('content-length') || 0);
+  const maxBytes = Math.max(8000, Math.min(100000, Number(process.env.ANALYZE_MAX_BODY_BYTES || 30000)));
+  if (contentLength && contentLength > maxBytes) {
+    throw new Error(`Request body is too large. Limit is ${maxBytes} bytes.`);
+  }
+}
+
 async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
@@ -167,6 +182,7 @@ export async function GET() {
     aiConfigured,
     analyzeConcurrency: analyzeConcurrency(aiConfigured),
     crawlMaxPagesPerSiteLimit: crawlMaxPagesLimit(),
+    maxCompetitorsPerScan: maxCompetitorsLimit(),
     urlValidation: 'enabled at request boundary and crawler boundary',
     message: aiConfigured
       ? 'Analyze API route is active with OpenAI extraction enabled and maximum speed parallel processing.'
@@ -177,8 +193,18 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    assertRequestSize(req);
+    const ip = requestIp(req.headers);
+    const limit = rateLimit(`analyze:${ip}`, Number(process.env.ANALYZE_RATE_LIMIT || 8), Number(process.env.ANALYZE_RATE_WINDOW_MS || 15 * 60 * 1000));
+    if (!limit.ok) {
+      return NextResponse.json({
+        error: 'Too many intelligence scans were requested from this connection. Please wait before running another scan.',
+        resetAt: new Date(limit.resetAt).toISOString()
+      }, { status: 429 });
+    }
+
     const body = await req.json() as { competitors?: CompetitorInput[]; maxPagesPerSite?: number; save?: boolean; useAI?: boolean };
-    const rawCompetitors = (body.competitors || []).filter((item) => item.url?.trim()).slice(0, 25);
+    const rawCompetitors = (body.competitors || []).filter((item) => item.url?.trim()).slice(0, maxCompetitorsLimit());
     const competitors = rawCompetitors
       .map(sanitizeCompetitorInput)
       .filter((item): item is CompetitorInput => Boolean(item));

@@ -1,21 +1,20 @@
 # Andwell Innovation Command Center
 
-Andwell Innovation Command Center combines two products into one Hostinger-ready Node.js app:
+Andwell Innovation Command Center is a Hostinger-ready Node.js app for public-website competitive intelligence, review governance, AI-assisted field coaching, and executive reporting.
 
-1. A competitive intelligence hub that crawls public competitor websites, compares evidence against the Andwell service catalog, builds battlecards, saves reports, and powers Ask the Hub.
-2. A growth-planning command center that models county demand, service-line opportunity, referral conversion, staffing needs, launch sequencing, and board-ready decisions.
+The app keeps the visible command center wired to real Next.js API routes. Supabase is the production source of truth when configured; MongoDB and local JSON remain fallback options for development and constrained hosting.
 
 ## What Is Included
 
-- Command Center for executive, sales leader, sales rep, and admin lenses
-- Growth Command scenario engine for Home Healthcare, Mobile Wound, and Therapy Care
-- Board Room with financial upside, priority counties, and competitive risk overlay
-- Launch Plan with staffing model, 90-day execution timeline, and priority account plays
-- Competitor Intake for up to 25 public URLs
-- Evidence Matrix, Battlecards, Reports, Ask the Hub, Andwell Catalog, and System Check
-- Server-side APIs for analysis, competitors, reports, reviews, catalog, diagnostics, health, and version checks
-- Supabase, MongoDB, or local JSON persistence fallback
-- Patched standalone Next.js bootstrap for Hostinger Node deployments
+- Executive dashboard with workspace status, recent scans, review queue, approved intelligence, and next recommended action
+- Public competitor source intake wired to `/api/analyze`
+- Review workflow for approving, editing, or rejecting evidence-backed findings
+- Intelligence library powered by stored reports and review decisions
+- AI Intelligence Coach powered by `/api/ask` and stored evidence
+- Executive report preview with readiness blockers and print support
+- Server-side APIs for analysis, competitors, reports, reviews, catalog, diagnostics, runtime, health, and version checks
+- Supabase production persistence, with MongoDB/local JSON fallback
+- Hostinger Node.js startup through `server.js`
 
 ## Local Development
 
@@ -38,7 +37,7 @@ npm run build
 npm start
 ```
 
-`npm run build` creates the Next.js standalone output, copies required static assets into the standalone bundle, and patches the generated server so Hostinger starts reliably instead of falling into a 503 loop while Next prepares.
+`npm run build` creates the optimized Next.js production build. `npm start` runs `server.js`, which launches Next on Hostinger's provided `PORT`.
 
 ## Hostinger Settings
 
@@ -67,6 +66,10 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 MONGODB_URI=
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+ANALYZE_MAX_COMPETITORS=25
+ANALYZE_RATE_LIMIT=8
+ANALYZE_RATE_WINDOW_MS=900000
 ```
 
 Let Hostinger manage `PORT`. Do not set `HOST` to the public domain.
@@ -86,8 +89,9 @@ After deployment, check:
 ```bash
 /api/health
 /api/version
-/api/diagnostics
 /api/runtime
+/api/diagnostics
+/api/analyze
 ```
 
 The API routes should return JSON. If an API route returns HTML, the site is not running as the Node.js Next server.

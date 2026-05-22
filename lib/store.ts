@@ -262,6 +262,20 @@ function catalogOverrideRow(override: CatalogOverride) {
   };
 }
 
+function urlDeleteCandidates(url: string) {
+  const trimmed = url.trim();
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
+  const candidates = new Set([trimmed, withoutTrailingSlash]);
+  try {
+    const parsed = new URL(trimmed);
+    candidates.add(parsed.toString());
+    candidates.add(parsed.toString().replace(/\/+$/, ''));
+  } catch {
+    // Keep caller-provided values for non-standard inputs.
+  }
+  return [...candidates].filter(Boolean);
+}
+
 export async function saveCompetitors(competitors: CompetitorInput[]) {
   if (isSupabaseConfigured() && !supabaseUnavailable) {
     try {
@@ -296,6 +310,38 @@ export async function saveCompetitors(competitors: CompetitorInput[]) {
     if (competitor.url) byUrl.set(competitor.url, competitor);
   });
   store.competitors = [...byUrl.values()].slice(0, 500);
+  return writeStore(store);
+}
+
+export async function deleteCompetitor(url: string) {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) return readStore();
+  const candidates = urlDeleteCandidates(normalizedUrl);
+
+  if (isSupabaseConfigured() && !supabaseUnavailable) {
+    try {
+      const result = await getSupabaseClient().from('cih_competitors').delete().in('url', candidates);
+      assertSupabase('delete competitor', result.error);
+      return readStore();
+    } catch (error) {
+      supabaseUnavailable = true;
+      logPersistenceFallback('Supabase', error);
+    }
+  }
+
+  if (isMongoConfigured() && !mongoUnavailable) {
+    try {
+      const col = await collection<CompetitorInput>('competitors');
+      await col.deleteMany({ url: { $in: candidates } });
+      return readStore();
+    } catch (error) {
+      mongoUnavailable = true;
+      logPersistenceFallback('MongoDB', error);
+    }
+  }
+
+  const store = await readStore();
+  store.competitors = store.competitors.filter((competitor) => !candidates.includes(competitor.url));
   return writeStore(store);
 }
 

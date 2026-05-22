@@ -18,11 +18,14 @@ Let Hostinger manage PORT.
 Current package scripts:
 
 build: next build
-postbuild: node scripts/patch-standalone-server.js
-start: node .next/standalone/server.js
+start: node server.js
 
-The postbuild step patches the generated .next/standalone/server.js file and copies .next/static plus public assets into the standalone bundle. That keeps GitHub pulls from creating a 503 loop or a page with missing JavaScript and CSS assets while Hostinger restarts the Node app.
+The custom `server.js` starts Next.js with Hostinger's provided `PORT` and binds to `0.0.0.0` by default. This avoids the 503 loop caused by Hostinger starting the wrong file or serving static fallback HTML instead of the Node.js app.
 
-If emergency diagnostics are needed, the custom bootstrap remains available with:
+After deployment, verify these JSON endpoints:
 
-npm run start:custom
+/api/health
+/api/version
+/api/runtime
+/api/diagnostics
+/api/analyze

@@ -36,8 +36,6 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "components/command-center/views/**/*",
-    "lib/growth-plan/**/*"
+    "node_modules"
   ]
 }
