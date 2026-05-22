@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: Node.js Next Build
 
 on:
   push:
@@ -8,21 +8,25 @@ on:
 
 jobs:
   build:
+    name: Build on Node.js 20
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
-    - name: Build
-      run: |
-        npm install
-        npx webpack
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Strict production build
+        run: npm run build:strict
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
