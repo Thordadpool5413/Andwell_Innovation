@@ -1,17 +1,17 @@
 # Andwell Innovation Command Center
 
-Andwell Innovation Command Center is a Hostinger-ready Node.js app for public-website competitive intelligence, review governance, AI-assisted field coaching, and executive reporting.
+Andwell Innovation Command Center is a Hostinger-ready Node.js app for public-website competitive intelligence, AI-scrubbed field language, growth strategy, and executive reporting.
 
 The app keeps the visible command center wired to real Next.js API routes. Supabase is the production source of truth when configured; MongoDB and local JSON remain fallback options for development and constrained hosting.
 
 ## What Is Included
 
-- Executive dashboard with workspace status, recent scans, review queue, approved intelligence, and next recommended action
+- Executive home page with the Andwell Innovation and Growth purpose, AI build status, source intake, and next recommended action
 - Public competitor source intake wired to `/api/analyze`
-- Review workflow for approving, editing, or rejecting evidence-backed findings
-- Intelligence library powered by stored reports and review decisions
+- AI source review, claim scrubbing, service-line mapping, and safe-language generation
+- Intelligence library powered by stored reports and AI-built outputs
 - AI Intelligence Coach powered by `/api/ask` and stored evidence
-- Executive report preview with readiness blockers and print support
+- Executive report preview with AI-built strategy, guardrails, and print support
 - Server-side APIs for analysis, competitors, reports, reviews, catalog, diagnostics, runtime, health, and version checks
 - Supabase production persistence, with MongoDB/local JSON fallback
 - Hostinger Node.js startup through `app.js`, which delegates to `server.js`
@@ -98,4 +98,4 @@ The API routes should return JSON. If an API route returns HTML, the site is not
 
 ## Safety Rule
 
-The competitive intelligence workflow uses public website evidence. It says "not found publicly" instead of claiming a competitor does not offer a service unless approved evidence supports that stronger statement.
+The competitive intelligence workflow uses public website evidence. It says "not found publicly" instead of claiming a competitor does not offer a service unless reliable source evidence supports that stronger statement.

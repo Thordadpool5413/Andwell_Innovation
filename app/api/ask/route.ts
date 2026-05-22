@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
   const latest = reports[0];
   if (!latest) {
     return NextResponse.json({
-      answer: 'No stored intelligence report was found yet. Start by adding public competitor websites and running an intelligence scan. After the scan, approve at least one evidence-backed finding so the coach can answer from trusted intelligence.',
+      answer: 'No stored intelligence report was found yet. Start by adding public competitor websites and building intelligence. The AI will review the sources, scrub unsupported claims, and create trusted strategy outputs.',
       evidence: [],
-      confidence: 'Needs review',
+      confidence: 'Build needed',
       nextBestActions: [
         'Open Sources and add one or more public competitor websites.',
-        'Run an intelligence scan.',
-        'Approve strong evidence in the Review queue before using field language.'
+        'Build intelligence from those sources.',
+        'Ask the coach after the AI has created stored evidence and safe wording.'
       ]
     });
   }
@@ -56,23 +56,22 @@ export async function POST(req: NextRequest) {
 
   const ranked = rankEvidenceForQuestion(candidateItems, question).slice(0, 12);
   if (!ranked.length) {
-    const readiness = activeReport.readiness;
     return NextResponse.json({
-      answer: `I could not find stored evidence that matches this question in the latest report from ${new Date(activeReport.generatedAt).toLocaleString()}. Ask about a competitor, service line, or approved finding already in the report, or run a new scan with sources that cover this topic. ${readiness?.nextAction || ''}`.trim(),
-      confidence: 'Needs review',
+      answer: `I could not find stored evidence that matches this question in the latest report from ${new Date(activeReport.generatedAt).toLocaleString()}. Ask about a competitor, service line, or source-backed finding already in the report, or build intelligence again with sources that directly cover this topic.`.trim(),
+      confidence: 'Evidence gap',
       reportId: activeReport.id,
       questionTerms: terms,
       nextBestActions: [
         'Search the Intelligence Library for the exact competitor or service line.',
-        'Run a new scan with a source page that directly covers this topic.',
-        'Approve relevant findings before using coach language in the field.'
+        'Build intelligence again with a source page that directly covers this topic.',
+        'Use cautious language until the source evidence is present.'
       ],
       evidence: []
     });
   }
   const potentialAdvantages = ranked.filter((item) => item.competitorStatus !== 'Clearly offered').slice(0, 5);
   const matches = ranked.filter((item) => item.competitorStatus === 'Clearly offered').slice(0, 5);
-  const reviewItems = ranked.filter((item) => item.reviewStatus !== 'Sales usable with evidence' && item.reviewStatus !== 'Approved for sales use').slice(0, 5);
+  const guardedItems = ranked.filter((item) => item.reviewStatus !== 'Sales usable with evidence' && item.reviewStatus !== 'Approved for sales use').slice(0, 5);
   const topEvidence = ranked.slice(0, 3);
   const nextBestActions = topEvidence.map(fieldActionFromEvidence);
 
@@ -83,13 +82,13 @@ export async function POST(req: NextRequest) {
   }
   if (potentialAdvantages.length) answerParts.push(`Potential Andwell advantages: ${potentialAdvantages.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   if (matches.length) answerParts.push(`Public matches found: ${matches.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
-  if (reviewItems.length) answerParts.push(`Review needed before sales use: ${reviewItems.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
+  if (guardedItems.length) answerParts.push(`Use guarded language for limited-evidence items: ${guardedItems.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   if (nextBestActions.length) answerParts.push(`Recommended next move: ${nextBestActions[0]}`);
   answerParts.push('Use safe language. Not found publicly means the service was not clearly found in reviewed public pages, not that the competitor does not provide it.');
 
   return NextResponse.json({
     answer: answerParts.join(' '),
-    confidence: reviewItems.length ? 'Manager review suggested' : 'Evidence backed',
+    confidence: guardedItems.length ? 'Guarded language' : 'Evidence backed',
     reportId: activeReport.id,
     questionTerms: terms,
     nextBestActions,

@@ -32,11 +32,11 @@ export function recommendedReviewActionFor(item: ReviewablePolicyInput) {
 export function reviewReasonFor(item: ReviewablePolicyInput) {
   const strength = evidenceStrengthFor(item);
   const action = recommendedReviewActionFor(item);
-  if (action === 'Approve') return 'Public evidence and confidence are strong enough for approved safe-language review.';
+  if (action === 'Approve') return 'Public evidence and confidence are strong enough for safe-language output.';
   if (action === 'Edit') return 'Evidence exists, but wording should stay careful because the public signal is partial, related, or not fully equivalent.';
   if (action === 'Reject') return 'The claim is not supported by reviewed evidence.';
-  if (strength === 'Missing') return 'No reliable public source was captured, so this should be checked before field or leadership use.';
-  return 'This finding needs a human decision before it becomes approved intelligence.';
+  if (strength === 'Missing') return 'No reliable public source was captured, so the AI will keep this out of strong field language.';
+  return 'The AI is keeping this finding guarded because the public evidence is limited.';
 }
 
 export function enrichFinding<T extends ReviewablePolicyInput>(item: T): T {
@@ -68,14 +68,14 @@ export function calculateReportReadiness(input: {
   const blockers: string[] = [];
   const strengths: string[] = [];
 
-  if (!input.hasReport) blockers.push('Run at least one competitor scan.');
-  if (input.hasReport && !input.approvedEvidenceCount) blockers.push('Approve at least one evidence-backed finding.');
-  if (input.openReviewCount > 0) blockers.push(`Resolve ${input.openReviewCount} open review item${input.openReviewCount === 1 ? '' : 's'}.`);
-  if (input.crawlWarningCount > 0) blockers.push(`Review ${input.crawlWarningCount} crawl warning${input.crawlWarningCount === 1 ? '' : 's'}.`);
+  if (!input.hasReport) blockers.push('Run at least one AI intelligence build.');
+  if (input.hasReport && !input.approvedEvidenceCount) blockers.push('Add stronger public evidence so the AI can produce usable safe language.');
+  if (input.openReviewCount > 0) blockers.push(`AI flagged ${input.openReviewCount} claim${input.openReviewCount === 1 ? '' : 's'} for guarded language.`);
+  if (input.crawlWarningCount > 0) blockers.push(`${input.crawlWarningCount} crawl warning${input.crawlWarningCount === 1 ? '' : 's'} handled with caution.`);
   if (input.sourceIssueCount > 0) blockers.push(`Check ${input.sourceIssueCount} skipped or rejected source${input.sourceIssueCount === 1 ? '' : 's'}.`);
 
-  if (input.approvedEvidenceCount > 0) strengths.push(`${input.approvedEvidenceCount} approved finding${input.approvedEvidenceCount === 1 ? '' : 's'} available for safe use.`);
-  if (input.openReviewCount === 0 && input.hasReport) strengths.push('No open review queue blockers.');
+  if (input.approvedEvidenceCount > 0) strengths.push(`${input.approvedEvidenceCount} scrubbed finding${input.approvedEvidenceCount === 1 ? '' : 's'} available for safe use.`);
+  if (input.openReviewCount === 0 && input.hasReport) strengths.push('No high-risk policy flags in the latest build.');
   if (input.crawlWarningCount === 0 && input.hasReport) strengths.push('No crawl warnings in the latest report.');
   if (input.aiEnabled) strengths.push('AI enrichment was available for this scan.');
 
@@ -87,14 +87,14 @@ export function calculateReportReadiness(input: {
   const score = Math.min(100, base + evidenceScore + reviewScore + crawlScore + sourceScore);
   const status: 'Ready' | 'Draft' | 'Blocked' = !input.hasReport || !input.approvedEvidenceCount || input.openReviewCount > 0 ? 'Blocked' : blockers.length ? 'Draft' : 'Ready';
   const nextAction = !input.hasReport
-    ? 'Run the first intelligence scan so the workspace has real public evidence.'
+    ? 'Run the first AI intelligence build so the workspace has real public evidence.'
     : input.openReviewCount
-      ? `Review ${input.openReviewCount} finding${input.openReviewCount === 1 ? '' : 's'} before leadership or field use.`
+      ? `Use guarded language for ${input.openReviewCount} limited-evidence finding${input.openReviewCount === 1 ? '' : 's'}.`
       : !input.approvedEvidenceCount
-        ? 'Approve at least one evidence-backed finding to unlock strategy, coaching, and reports.'
+        ? 'Add stronger source evidence so the AI can build strategy, coaching, and report outputs.'
         : input.crawlWarningCount || input.sourceIssueCount
-          ? 'Use the report as a draft until source and crawl warnings are checked.'
-          : 'Workspace is ready for strategy, coaching, and executive report use.';
+          ? 'Use the report with source coverage context where the crawler found limited access.'
+          : 'AI-built strategy, coaching, and executive report outputs are available.';
 
   return {
     score,
@@ -114,36 +114,36 @@ export function recommendedActionsFor(report: IntelligenceReport) {
   const actions = [];
   if (readiness.openReviewCount > 0) {
     actions.push({
-      id: 'clear-review-queue',
-      label: 'Triage review queue',
-      detail: `Decide on ${readiness.openReviewCount} finding${readiness.openReviewCount === 1 ? '' : 's'} before publishing field language.`,
-      target: 'review' as const,
+      id: 'apply-ai-guardrails',
+      label: 'Use guarded language',
+      detail: `${readiness.openReviewCount} limited-evidence finding${readiness.openReviewCount === 1 ? '' : 's'} should stay inside cautious public-source wording.`,
+      target: 'coach' as const,
       priority: 'High' as const
     });
   }
   if (!readiness.approvedEvidenceCount) {
     actions.push({
-      id: 'approve-first-evidence',
-      label: 'Approve first evidence',
-      detail: 'Approve one strong finding so strategy, coaching, and report outputs can rely on trusted evidence.',
-      target: 'review' as const,
+      id: 'add-source-evidence',
+      label: 'Add stronger sources',
+      detail: 'Add direct service pages so the AI can build stronger strategy, coaching, and report outputs.',
+      target: 'sources' as const,
       priority: 'High' as const
     });
   }
   if (readiness.crawlWarningCount || readiness.sourceIssueCount) {
     actions.push({
-      id: 'review-source-health',
+      id: 'check-source-health',
       label: 'Check source health',
-      detail: 'Review skipped sources and crawl warnings before treating the scan as complete.',
+      detail: 'Some sources were skipped, rejected, or partially crawled. Add cleaner public URLs for stronger output.',
       target: 'sources' as const,
       priority: 'Medium' as const
     });
   }
   if (!actions.length) {
     actions.push({
-      id: 'use-approved-intelligence',
-      label: 'Use approved intelligence',
-      detail: 'Move into strategy, AI coaching, or the executive report with approved safe wording.',
+      id: 'use-ai-built-intelligence',
+      label: 'Use AI-built intelligence',
+      detail: 'Move into strategy, AI coaching, or the executive report with scrubbed safe wording.',
       target: 'strategy' as const,
       priority: 'Medium' as const
     });

@@ -89,11 +89,11 @@ function review(status: Status, confidence: Confidence): Finding['reviewStatus']
 }
 
 function interpretation(name: string, status: Status, subject = 'this capability') {
-  if (status === 'Clearly offered') return `${name} publicly appears to offer ${subject}. Review depth, geography, eligibility, and proof points before claiming competitive advantage.`;
+  if (status === 'Clearly offered') return `${name} publicly appears to offer ${subject}. Keep claims tied to public depth, geography, eligibility, and proof points.`;
   if (status === 'Mentioned only') return `${name} publicly mentions ${subject}, but reviewed pages do not show enough detail to treat it as fully equivalent.`;
   if (status === 'Related but not equivalent') return `${name} uses related public language for ${subject}, but the public description does not clearly match Andwell's full capability.`;
   if (status === 'Not found publicly') return `${subject} was not clearly found for ${name} in the reviewed public pages.`;
-  return `${subject} needs human review before it is used in sales language.`;
+  return `${subject} has limited public evidence, so the AI should keep field language guarded.`;
 }
 
 function buildSubserviceFinding(input: CompetitorInput, competitorId: string, serviceLine: string, subservice: string, pages: CrawledPage[]): SubserviceFinding {
@@ -118,7 +118,7 @@ function buildSubserviceFinding(input: CompetitorInput, competitorId: string, se
     safeSalesWording: c.status === 'Not found publicly'
       ? `Based on reviewed public pages, ${subservice} inside ${serviceLine} was not clearly found for ${name}. Andwell publicly lists this capability, so it may be a useful differentiator when appropriate.`
       : `${interpretation(name, c.status, subject)} Use evidence based language and do not overstate the difference.`,
-    avoidSaying: `Do not say ${name} does not provide ${subservice} unless that is confirmed by an approved source. Use not found publicly when this comes from website review.`,
+    avoidSaying: `Do not say ${name} does not provide ${subservice} unless that is confirmed by a reliable source. Use not found publicly when this comes from website evidence.`,
     reviewStatus: review(c.status, c.confidence)
   };
 }
@@ -157,17 +157,17 @@ function buildFinding(input: CompetitorInput, competitorId: string, service: typ
     sourceTitle: bestPage?.title,
     evidenceExcerpt: bestPage?.excerpt || `No explicit public evidence was found in ${pages.length} reviewed pages.`,
     aiInterpretation: `${interpretation(name, status, service.serviceLine)} ${clearlyMatchedSubservices} of ${service.subservices.length} Andwell subservices were clearly matched from public pages.`,
-    matchLevel: status === 'Clearly offered' ? 'Main service line match. Subservice depth determines positioning strength.' : status === 'Not found publicly' ? 'Potential Andwell advantage based on reviewed public pages.' : 'Partial, related, or unclear public match. Review before using in sales materials.',
+    matchLevel: status === 'Clearly offered' ? 'Main service line match. Subservice depth determines positioning strength.' : status === 'Not found publicly' ? 'Potential Andwell advantage based on reviewed public pages.' : 'Partial, related, or unclear public match. Use guarded field language.',
     andwellAdvantage: status === 'Clearly offered'
       ? `${service.serviceLine} appears to be a shared public service area. Andwell differentiation should come from subservice depth and evidence, especially capabilities not clearly found for ${name}.`
       : `Andwell publicly promotes ${service.serviceLine} with detailed capabilities including ${service.subservices.slice(0, 8).join(', ')}.`,
     competitorAdvantage: status === 'Clearly offered'
-      ? `${name} publicly promotes ${service.serviceLine}. Review proof points, response time language, referral simplicity, and geography for possible competitor advantage.`
+      ? `${name} publicly promotes ${service.serviceLine}. Compare proof points, response time language, referral simplicity, and geography for possible competitor advantage.`
       : 'No clear competitor advantage was identified from reviewed public pages for this service line.',
     safeSalesWording: status === 'Not found publicly'
       ? `Based on reviewed public pages, ${service.serviceLine} was not clearly found for ${name}. Andwell publicly promotes this service line, so it may be a useful differentiator when appropriate.`
       : `${interpretation(name, status, service.serviceLine)} Compare individual subservices before claiming advantage.`,
-    avoidSaying: `Do not say ${name} does not offer ${service.serviceLine} unless confirmed by an approved source. Use not found publicly when the finding comes only from website review.`,
+    avoidSaying: `Do not say ${name} does not offer ${service.serviceLine} unless confirmed by a reliable source. Use not found publicly when the finding comes only from website evidence.`,
     reviewStatus: review(status, confidence),
     subserviceFindings,
     clearlyMatchedSubservices,
@@ -214,7 +214,7 @@ function buildScore(analysis: Omit<CompetitorAnalysis, 'score'>): CompetitorScor
     strongestAndwellAdvantages,
     needsReview,
     leadWith,
-    executiveReadout: `${analysis.name} shows ${serviceLineMatchScore}% service line overlap and ${subserviceDepthScore}% subservice depth against the Andwell taxonomy. Threat level: ${level}. Lead with ${leadWith.slice(0, 4).join(', ')} and verify review items before sales use.`
+    executiveReadout: `${analysis.name} shows ${serviceLineMatchScore}% service line overlap and ${subserviceDepthScore}% subservice depth against the Andwell taxonomy. Threat level: ${level}. Lead with ${leadWith.slice(0, 4).join(', ')} and keep limited-evidence claims guarded.`
   };
 }
 
@@ -243,7 +243,7 @@ function executiveInsights(scores: CompetitorScore[], humanReviewItems: number):
     priority: topThreat.threatLevel === 'Strategic threat' ? 'High' : 'Medium',
     audience: 'CEO',
     summary: `${topThreat.competitorName} has the highest overlap with Andwell based on public service line and subservice signals.`,
-    action: `Review this competitor first. Focus leadership discussion on ${topThreat.strongestMatches.slice(0, 4).join(', ') || 'shared service lines'} and where Andwell can prove deeper value.`
+    action: `Start here for leadership focus. Compare ${topThreat.strongestMatches.slice(0, 4).join(', ') || 'shared service lines'} and where Andwell can prove deeper value.`
   });
   if (biggestDifferentiation) insights.push({
     title: 'Best Andwell differentiation opportunity',
@@ -253,11 +253,11 @@ function executiveInsights(scores: CompetitorScore[], humanReviewItems: number):
     action: `Build sales coaching around ${biggestDifferentiation.strongestAndwellAdvantages.slice(0, 5).join(', ')} using safe public evidence language.`
   });
   insights.push({
-    title: 'Review before sales use',
+    title: 'Guarded language required',
     priority: humanReviewItems > 20 ? 'High' : 'Medium',
     audience: 'Admin',
-    summary: `${humanReviewItems} findings need human review or manager review before they should be treated as approved sales language.`,
-    action: 'Use the Review Center to approve, edit, or reject findings before publishing battlecards to the field.'
+    summary: `${humanReviewItems} findings have limited or partial evidence, so the AI should keep them cautious instead of turning them into strong claims.`,
+    action: 'Use the AI-built safe wording and avoid definitive competitor claims unless the source evidence directly supports them.'
   });
   insights.push({
     title: 'Rep coaching priority',

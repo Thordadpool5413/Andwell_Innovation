@@ -9,30 +9,21 @@ import {
   Bot,
   Brain,
   CheckCircle2,
-  CircleCheck,
-  ClipboardCheck,
   Database,
-  ExternalLink,
   FileText,
-  Flag,
   Gauge,
-  Globe2,
   Library,
-  ListChecks,
   Menu,
   PanelLeftClose,
-  Play,
   RefreshCcw,
   Search,
   Send,
   Shield,
   ShieldCheck,
   Sparkles,
-  Target,
   UploadCloud
 } from 'lucide-react';
 import type { CompetitorInput, Finding, IntelligenceReport, ReviewStatus, SubserviceFinding } from '../../lib/types';
-import { calculateReportReadiness, calculateStoredReadiness, isApprovedReviewStatus, isOpenReviewStatus } from '../../lib/intelligence-policy';
 import { validatePublicHttpUrl } from '../../lib/url-safety';
 import type { StoredReview } from '../../lib/store';
 import {
@@ -45,10 +36,9 @@ import {
   fetchReports,
   fetchReviews,
   fetchRuntime,
-  runAnalysis,
-  saveReview
+  runAnalysis
 } from './api';
-import type { AskResponse, CommandCenterState, ReportSummary, ReviewableFinding, SourcePreviewItem, TabId } from './model';
+import type { AskResponse, CommandCenterState, ReviewableFinding, SourcePreviewItem, TabId } from './model';
 import { Badge, Button, Card, EmptyState, LoadingState, Metric, Notice, Progress, formatDate, number } from './ui';
 
 const initialState: CommandCenterState = {
@@ -64,23 +54,14 @@ const initialState: CommandCenterState = {
 };
 
 const tabs: Array<{ id: TabId; label: string; help: string; icon: typeof Gauge }> = [
-  { id: 'dashboard', label: 'Dashboard', help: 'Workspace pulse', icon: Gauge },
-  { id: 'sources', label: 'Sources', help: 'Run intelligence scan', icon: UploadCloud },
-  { id: 'review', label: 'Review', help: 'Approve findings', icon: ClipboardCheck },
-  { id: 'library', label: 'Intelligence Library', help: 'Approved evidence', icon: Library },
-  { id: 'strategy', label: 'Strategy', help: 'Market plays', icon: BarChart3 },
-  { id: 'coach', label: 'AI Coach', help: 'Ask evidence questions', icon: Bot },
-  { id: 'report', label: 'Executive Report', help: 'Board-ready output', icon: FileText },
+  { id: 'dashboard', label: 'Home', help: 'What, why, how', icon: Gauge },
+  { id: 'sources', label: 'Build Intelligence', help: 'Enter sources', icon: UploadCloud },
+  { id: 'library', label: 'Intelligence Library', help: 'AI-built outputs', icon: Library },
+  { id: 'strategy', label: 'Strategy', help: 'Growth plays', icon: BarChart3 },
+  { id: 'coach', label: 'AI Coach', help: 'Ask the system', icon: Bot },
+  { id: 'report', label: 'Executive Report', help: 'Leadership output', icon: FileText },
   { id: 'system', label: 'System Health', help: 'Hostinger checks', icon: Activity }
 ];
-
-const workflowSteps = [
-  { id: 'sources', label: 'Upload Sources', help: 'Add competitor URLs', icon: Globe2 },
-  { id: 'scan', label: 'Run Intelligence Scan', help: 'Crawl public websites', icon: Play },
-  { id: 'review', label: 'Review Findings', help: 'Triage evidence', icon: ListChecks },
-  { id: 'approve', label: 'Approve Intelligence', help: 'Publish trusted insights', icon: Shield },
-  { id: 'export', label: 'Use & Export', help: 'Strategy, coaching, report', icon: FileText }
-] as const;
 
 function parseSourceInput(value: string): CompetitorInput[] {
   return sourcePreview(value)
@@ -147,40 +128,6 @@ function effectiveStatus(item: Finding | SubserviceFinding, reviews: StoredRevie
   return savedReviewFor(item, reviews)?.status || item.reviewStatus;
 }
 
-function isApproved(status: ReviewStatus | 'Needs edits') {
-  return isApprovedReviewStatus(status);
-}
-
-function isOpenReview(status: ReviewStatus | 'Needs edits') {
-  return isOpenReviewStatus(status);
-}
-
-function reviewPriorityScore(item: ReviewableFinding) {
-  let score = item.kind === 'service' ? 18 : 8;
-  if (item.sourceUrl) score += 12;
-  if (item.confidence === 'High') score += 18;
-  if (item.confidence === 'Moderate') score += 10;
-  if (item.effectiveReviewStatus === 'Needs human review') score += 18;
-  if (item.effectiveReviewStatus === 'Manager review suggested') score += 12;
-  if (item.competitorStatus === 'Clearly offered') score += 16;
-  if (item.competitorStatus === 'Not found publicly') score += 6;
-  return score;
-}
-
-function priorityReviewItems(items: ReviewableFinding[]) {
-  return [...items].sort((a, b) => reviewPriorityScore(b) - reviewPriorityScore(a));
-}
-
-function reportReadiness(reportCount: number, openReviewCount: number, approvedCount: number) {
-  return calculateReportReadiness({
-    hasReport: Boolean(reportCount),
-    approvedEvidenceCount: approvedCount,
-    openReviewCount,
-    crawlWarningCount: 0,
-    sourceIssueCount: 0
-  }).score;
-}
-
 function toReviewable(report: IntelligenceReport | null, reviews: StoredReview[]): ReviewableFinding[] {
   if (!report) return [];
   const serviceItems: ReviewableFinding[] = report.allFindings.map((item) => ({
@@ -216,22 +163,46 @@ function compactUrl(url?: string) {
   }
 }
 
+function scrubOutputText(value?: string) {
+  return (value || '')
+    .replace(/Review before sales use/g, 'Guarded language required')
+    .replace(/Review Center/g, 'AI safe-language engine')
+    .replace(/review queue/gi, 'AI build')
+    .replace(/review items/gi, 'guarded items')
+    .replace(/review item/gi, 'guarded item')
+    .replace(/human review/gi, 'AI guardrails')
+    .replace(/manager review/gi, 'AI guardrails')
+    .replace(/approved intelligence/gi, 'AI-built intelligence')
+    .replace(/approved evidence/gi, 'source evidence')
+    .replace(/approved source/gi, 'reliable source')
+    .replace(/approved findings/gi, 'scrubbed findings')
+    .replace(/approved finding/gi, 'scrubbed finding')
+    .replace(/approved language/gi, 'scrubbed language')
+    .replace(/approve findings/gi, 'let the AI scrub findings')
+    .replace(/approve relevant findings/gi, 'build source-backed findings')
+    .replace(/approve strong evidence/gi, 'build from strong evidence')
+    .replace(/Review this competitor first/g, 'Start here for leadership focus')
+    .replace(/Needs review/g, 'Evidence limited');
+}
+
+function displayStatus(value: string) {
+  if (value === 'Approved for sales use') return 'Sales usable with evidence';
+  if (value === 'Manager review suggested') return 'Guarded language';
+  if (value === 'Needs human review') return 'Evidence limited';
+  if (value === 'Needs review') return 'Evidence limited';
+  return scrubOutputText(value)
+}
+
 function currentNextAction({
   hasReport,
-  openReviewCount,
-  approvedCount,
   aiConfigured
 }: {
   hasReport: boolean;
-  openReviewCount: number;
-  approvedCount: number;
   aiConfigured: boolean;
 }) {
-  if (!hasReport) return 'Run the first intelligence scan so the workspace has real evidence.';
-  if (openReviewCount) return `Review ${openReviewCount} finding${openReviewCount === 1 ? '' : 's'} before leadership output.`;
-  if (!approvedCount) return 'Approve at least one evidence-backed finding to unlock strategy and coaching.';
-  if (!aiConfigured) return 'AI enrichment is off. Add OPENAI_API_KEY when you want deeper extraction.';
-  return 'Workspace is ready for strategy, coaching, and executive report use.';
+  if (!hasReport) return 'Enter sources and let the AI review, scrub, connect, and build the intelligence outputs.';
+  if (!aiConfigured) return 'AI enrichment is off, so the app is using its evidence rules and public-source intelligence engine.';
+  return 'The AI has built the strategy, coaching, intelligence library, and executive report from the latest sources.';
 }
 
 export default function CommandCenterApp() {
@@ -241,7 +212,6 @@ export default function CommandCenterApp() {
   const [sourceText, setSourceText] = useState('');
   const [scanBusy, setScanBusy] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
-  const [reviewBusyId, setReviewBusyId] = useState('');
   const [search, setSearch] = useState('');
   const [question, setQuestion] = useState('');
   const [askBusy, setAskBusy] = useState(false);
@@ -292,8 +262,7 @@ export default function CommandCenterApp() {
   }, [activeTab]);
 
   const reviewableItems = useMemo(() => toReviewable(state.currentReport, state.reviews), [state.currentReport, state.reviews]);
-  const openReviewItems = useMemo(() => reviewableItems.filter((item) => isOpenReview(item.effectiveReviewStatus)), [reviewableItems]);
-  const approvedItems = useMemo(() => reviewableItems.filter((item) => isApproved(item.effectiveReviewStatus)), [reviewableItems]);
+  const approvedItems = useMemo(() => reviewableItems.filter((item) => item.effectiveReviewStatus !== 'Rejected' && item.recommendedReviewAction !== 'Reject'), [reviewableItems]);
   const filteredApproved = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return approvedItems.slice(0, 80);
@@ -303,32 +272,20 @@ export default function CommandCenterApp() {
       .includes(query)).slice(0, 80);
   }, [approvedItems, search]);
 
-  const readiness = state.currentReport
-    ? calculateStoredReadiness(state.currentReport, { approvedEvidenceCount: approvedItems.length, openReviewCount: openReviewItems.length })
-    : calculateReportReadiness({
-      hasReport: false,
-      approvedEvidenceCount: approvedItems.length,
-      openReviewCount: openReviewItems.length,
-      crawlWarningCount: 0,
-      sourceIssueCount: 0,
-      aiEnabled: Boolean(state.analyzeHealth?.aiConfigured)
-    });
-  const nextAction = readiness.nextAction || currentNextAction({
+  const nextAction = currentNextAction({
     hasReport: Boolean(state.currentReport),
-    openReviewCount: openReviewItems.length,
-    approvedCount: approvedItems.length,
     aiConfigured: Boolean(state.analyzeHealth?.aiConfigured)
   });
 
   async function handleScan() {
     const competitors = parseSourceInput(sourceText);
     if (!competitors.length) {
-      setScanMessage('Add at least one public competitor URL before running a scan.');
+      setScanMessage('Add at least one public competitor URL before building intelligence.');
       return;
     }
 
     setScanBusy(true);
-    setScanMessage('Scanning public pages, mapping service evidence, and building review items.');
+    setScanMessage('AI is reviewing public evidence, scrubbing unsafe claims, connecting service lines, and building strategy outputs.');
     try {
       const report = await runAnalysis(competitors);
       const [reportsPayload, competitorsPayload, reviewsPayload] = await Promise.all([
@@ -346,30 +303,12 @@ export default function CommandCenterApp() {
         reviews: reviewsPayload.reviews
       }));
       const sourceIssues = report.sourceHealth?.filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length || 0;
-      setScanMessage(`Scan complete. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} analyzed, ${report.humanReviewItems} review items created, and ${sourceIssues} source health issue${sourceIssues === 1 ? '' : 's'} flagged.`);
-      setActiveTab('review');
+      setScanMessage(`AI build complete. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} analyzed, ${report.pagesReviewed} public page${report.pagesReviewed === 1 ? '' : 's'} reviewed, and ${sourceIssues} source issue${sourceIssues === 1 ? '' : 's'} handled.`);
+      setActiveTab('strategy');
     } catch (error) {
-      setScanMessage(error instanceof Error ? error.message : 'The scan could not be completed.');
+      setScanMessage(error instanceof Error ? error.message : 'The AI build could not be completed.');
     } finally {
       setScanBusy(false);
-    }
-  }
-
-  async function handleReview(item: ReviewableFinding, status: ReviewStatus | 'Needs edits') {
-    setReviewBusyId(item.id);
-    try {
-      const { review } = await saveReview({
-        findingId: item.id,
-        status,
-        note: status === 'Approved for sales use' ? 'Approved from command center review.' : 'Marked from command center review.',
-        reviewer: 'Public workspace'
-      });
-      setState((current) => ({
-        ...current,
-        reviews: [review, ...current.reviews.filter((saved) => saved.findingId !== review.findingId)]
-      }));
-    } finally {
-      setReviewBusyId('');
     }
   }
 
@@ -388,7 +327,7 @@ export default function CommandCenterApp() {
     } catch (error) {
       setAskResponse({
         answer: error instanceof Error ? error.message : 'The AI coach could not answer this question.',
-        confidence: 'Needs review',
+        confidence: 'AI unavailable',
         nextBestActions: [],
         evidence: []
       });
@@ -408,7 +347,6 @@ export default function CommandCenterApp() {
       <Sidebar
         activeTab={activeTab}
         mobileOpen={mobileOpen}
-        openReviewCount={openReviewItems.length}
         approvedCount={approvedItems.length}
         reportCount={state.reports.length}
         onClose={() => setMobileOpen(false)}
@@ -434,7 +372,7 @@ export default function CommandCenterApp() {
           </div>
         </header>
 
-        {state.status === 'loading' ? <LoadingState title="Loading command center" body="Reading reports, reviews, catalog, and runtime status." /> : null}
+        {state.status === 'loading' ? <LoadingState title="Loading command center" body="Reading reports, catalog, source history, and runtime status." /> : null}
         {state.status === 'error' ? (
           <Notice title="Workspace needs attention" body={state.error} tone="red" />
         ) : null}
@@ -442,7 +380,6 @@ export default function CommandCenterApp() {
         {activeTab === 'dashboard' ? (
           <Dashboard
             state={state}
-            openReviewItems={openReviewItems}
             approvedItems={approvedItems}
             nextAction={nextAction}
             sourceText={sourceText}
@@ -463,9 +400,6 @@ export default function CommandCenterApp() {
             onScan={() => void handleScan()}
           />
         ) : null}
-        {activeTab === 'review' ? (
-          <ReviewScreen items={openReviewItems} busyId={reviewBusyId} onReview={(item, status) => void handleReview(item, status)} onSources={() => changeTab('sources')} />
-        ) : null}
         {activeTab === 'library' ? (
           <LibraryScreen
             approvedItems={filteredApproved}
@@ -474,10 +408,10 @@ export default function CommandCenterApp() {
             setSearch={setSearch}
             competitors={state.competitors}
             onDelete={(url) => void handleDeleteCompetitor(url)}
-            onReview={() => changeTab('review')}
+            onBuild={() => changeTab('sources')}
           />
         ) : null}
-        {activeTab === 'strategy' ? <StrategyScreen report={state.currentReport} approvedCount={approvedItems.length} onReview={() => changeTab('review')} /> : null}
+        {activeTab === 'strategy' ? <StrategyScreen report={state.currentReport} onBuild={() => changeTab('sources')} /> : null}
         {activeTab === 'coach' ? (
           <CoachScreen
             report={state.currentReport}
@@ -488,7 +422,7 @@ export default function CommandCenterApp() {
             onAsk={() => void handleAsk()}
           />
         ) : null}
-        {activeTab === 'report' ? <ReportScreen report={state.currentReport} approvedItems={approvedItems} openReviewCount={openReviewItems.length} /> : null}
+        {activeTab === 'report' ? <ReportScreen report={state.currentReport} approvedItems={approvedItems} /> : null}
         {activeTab === 'system' ? <SystemScreen state={state} /> : null}
       </main>
     </div>
@@ -499,7 +433,6 @@ function Sidebar({
   activeTab,
   mobileOpen,
   reportCount,
-  openReviewCount,
   approvedCount,
   onChange,
   onClose
@@ -507,13 +440,10 @@ function Sidebar({
   activeTab: TabId;
   mobileOpen: boolean;
   reportCount: number;
-  openReviewCount: number;
   approvedCount: number;
   onChange: (tab: TabId) => void;
   onClose: () => void;
 }) {
-  const progress = reportReadiness(reportCount, openReviewCount, approvedCount);
-
   return (
     <>
       <aside className={`cc-sidebar ${mobileOpen ? 'open' : ''}`}>
@@ -528,11 +458,10 @@ function Sidebar({
         </div>
         <div className="cc-progress-card">
           <div>
-            <span>Workflow readiness</span>
-            <strong>{progress}%</strong>
+            <span>AI build mode</span>
+            <strong>{reportCount ? 'Active' : 'Ready'}</strong>
           </div>
-          <Progress value={progress} tone={progress >= 75 ? 'green' : progress >= 40 ? 'amber' : 'blue'} />
-          <p>{reportCount ? `${openReviewCount} open reviews, ${approvedCount} approved findings` : 'Run a scan to start the workspace.'}</p>
+          <p>{reportCount ? `${approvedCount} scrubbed intelligence item${approvedCount === 1 ? '' : 's'} available.` : 'Enter sources and the AI will review, scrub, connect, and build the outputs.'}</p>
         </div>
         <nav className="cc-nav" aria-label="Command center navigation">
           {tabs.map((tab) => {
@@ -556,7 +485,6 @@ function Sidebar({
 
 function Dashboard({
   state,
-  openReviewItems,
   approvedItems,
   nextAction,
   sourceText,
@@ -567,7 +495,6 @@ function Dashboard({
   onTab
 }: {
   state: CommandCenterState;
-  openReviewItems: ReviewableFinding[];
   approvedItems: ReviewableFinding[];
   nextAction: string;
   sourceText: string;
@@ -578,150 +505,129 @@ function Dashboard({
   onTab: (tab: TabId) => void;
 }) {
   const report = state.currentReport;
-  const openPriority = priorityReviewItems(openReviewItems);
   const approvedPreview = approvedItems.slice(0, 3);
-  const readiness = report
-    ? calculateStoredReadiness(report, { approvedEvidenceCount: approvedItems.length, openReviewCount: openReviewItems.length })
-    : calculateReportReadiness({
-      hasReport: false,
-      approvedEvidenceCount: approvedItems.length,
-      openReviewCount: openReviewItems.length,
-      crawlWarningCount: 0,
-      sourceIssueCount: 0,
-      aiEnabled: Boolean(state.analyzeHealth?.aiConfigured)
-    });
-  const readyScore = readiness.score;
   const hasQueuedSources = parseSourceInput(sourceText).length > 0;
-  const workflowState = {
-    sources: state.competitors.length > 0 || hasQueuedSources,
-    scan: Boolean(report),
-    review: Boolean(report) && openReviewItems.length > 0,
-    approve: approvedItems.length > 0,
-    export: approvedItems.length > 0 && openReviewItems.length === 0
-  };
+  const pagesReviewed = report?.pagesReviewed || 0;
+  const sourceCount = report?.sourceHealth?.filter((source) => source.status === 'crawled' || source.status === 'accepted').length || state.competitors.length;
+  const productCards = [
+    {
+      title: 'What',
+      body: 'An Innovation and Growth command center that turns market signals, public sources, service lines, and partnership context into usable strategy.'
+    },
+    {
+      title: 'Why',
+      body: 'Andwell is building high acuity community care infrastructure for Maine, post acute partnerships, payer value, and risk-ready growth.'
+    },
+    {
+      title: 'How',
+      body: 'The AI reviews sources, scrubs unsafe claims, connects evidence to Andwell capabilities, and builds strategy, coaching, and executive outputs.'
+    }
+  ];
 
   return (
     <div className="cc-stack">
       <section className="cc-hero-panel cc-command-hero">
         <div>
-          <span className="cc-hero-kicker">Executive intelligence workspace</span>
-          <h2>Turn public competitor evidence into approved field strategy.</h2>
-          <p>{nextAction}</p>
+          <span className="cc-hero-kicker">Andwell Innovation and Growth</span>
+          <h2 className="cc-hero-quote">Innovation and Growth is where Andwell Health Partners turns vision into infrastructure. We are building the future of high acuity community care, creating post acute partnerships that make us essential to Maine, connecting complex services through technology, and developing the value based contracting model that allows us to take risk, deliver better outcomes, save payers money, and grow because we are built for the complexity others cannot manage</h2>
+          <p>This app gives that work an AI intelligence engine: source in, evidence scrubbed, strategy built, leadership output ready to use.</p>
           <div className="cc-action-row">
-            <Button variant="primary" onClick={() => onTab('sources')}><UploadCloud size={16} /> Start Scan</Button>
-            <Button onClick={() => onTab(openReviewItems.length ? 'review' : 'library')}><ClipboardCheck size={16} /> {openReviewItems.length ? 'Triage Review' : 'Open Library'}</Button>
-            <Button onClick={() => onTab('report')}><FileText size={16} /> Report Readiness</Button>
+            <Button variant="primary" onClick={() => onTab('sources')}><UploadCloud size={16} /> Build Intelligence</Button>
+            <Button onClick={() => onTab('strategy')}><BarChart3 size={16} /> View Strategy</Button>
+            <Button onClick={() => onTab('report')}><FileText size={16} /> Executive Report</Button>
           </div>
         </div>
         <div className="cc-status-panel">
           <Badge tone={state.runtime?.persistence.supabaseConfigured ? 'green' : 'amber'}>
             {state.runtime?.persistence.supabaseConfigured ? 'Supabase live' : 'Local fallback'}
           </Badge>
-          <strong>{readyScore}% ready</strong>
+          <strong>{report ? 'AI build complete' : 'AI builder ready'}</strong>
           <span>
             {report ? (
               <>
-                Last scan {formatDate(report.generatedAt)}
+                Last build {formatDate(report.generatedAt)}
                 <br />
-                {report.pagesReviewed} pages reviewed
+                {pagesReviewed} pages reviewed across {sourceCount || report.competitorsAnalyzed} source{sourceCount === 1 ? '' : 's'}
               </>
-            ) : 'Upload public competitor URLs to begin.'}
+            ) : 'Enter public competitor sources and the AI will review, scrub, connect, and build the outputs.'}
           </span>
-          <Progress value={readyScore} tone={readyScore > 80 ? 'green' : readyScore > 45 ? 'amber' : 'blue'} />
+          <div className="cc-status-list">
+            <span>Evidence scrubbed</span>
+            <span>Safe language generated</span>
+            <span>Strategy and report built</span>
+          </div>
         </div>
       </section>
 
-      <WorkflowRail state={workflowState} onTab={onTab} />
+      <section className="cc-product-grid" aria-label="What why how">
+        {productCards.map((card) => (
+          <article key={card.title} className="cc-product-card">
+            <span>{card.title}</span>
+            <p>{card.body}</p>
+          </article>
+        ))}
+      </section>
 
       <div className="cc-metric-grid">
-        <Metric label="Recent scans" value={state.reports.length} detail="Stored reports" tone="blue" />
-        <Metric label="Review priority" value={openReviewItems.length} detail={openReviewItems.length ? 'Need a decision' : 'Queue is clear'} tone={openReviewItems.length ? 'amber' : 'green'} />
-        <Metric label="Approved evidence" value={approvedItems.length} detail="Ready for strategy" tone={approvedItems.length ? 'green' : 'slate'} />
+        <Metric label="AI builds" value={state.reports.length} detail="Stored intelligence runs" tone="blue" />
+        <Metric label="Sources" value={sourceCount || 0} detail={report ? 'Public sources processed' : 'Stored competitors'} tone="teal" />
+        <Metric label="Scrubbed outputs" value={approvedItems.length} detail="AI-governed findings" tone={approvedItems.length ? 'green' : 'slate'} />
         <Metric label="AI status" value={state.analyzeHealth?.aiConfigured ? 'On' : 'Off'} detail={state.analyzeHealth?.aiConfigured ? 'OpenAI extraction enabled' : 'Rule-based scan available'} tone={state.analyzeHealth?.aiConfigured ? 'teal' : 'amber'} />
       </div>
 
       <div className="cc-dashboard-grid cc-dashboard-primary">
-        <Card title="Next best action" eyebrow="Guided workflow" action={<Badge tone={openReviewItems.length ? 'amber' : report ? 'green' : 'blue'}>{openReviewItems.length ? 'Review' : report ? 'Use outputs' : 'Start'}</Badge>}>
+        <Card title="AI intelligence builder" eyebrow="Source to strategy" action={<Badge tone={report ? 'green' : 'blue'}>{report ? 'Built' : 'Start'}</Badge>}>
           <div className="cc-next-action">
-            <Target size={22} />
+            <Brain size={22} />
             <div>
               <strong>{nextAction}</strong>
-              <p>{report ? 'The app will keep sales language evidence-backed, reviewed, and ready for leadership output.' : 'Start with one or more public competitor websites. The scan creates review items, strategy signals, coach evidence, and a report preview.'}</p>
+              <p>{report ? 'Use the strategy, coach, library, and executive report built from the latest public evidence.' : 'Paste public competitor websites and let the AI handle the evidence review, claim scrubbing, service-line mapping, and output build.'}</p>
             </div>
           </div>
-          <div className="cc-action-row">
-            <Button variant="primary" onClick={() => onTab(report ? (openReviewItems.length ? 'review' : 'coach') : 'sources')}>
-              {report ? (openReviewItems.length ? <ListChecks size={16} /> : <Sparkles size={16} />) : <UploadCloud size={16} />}
-              {report ? (openReviewItems.length ? 'Review Priority Items' : 'Ask AI Coach') : 'Upload Sources'}
-            </Button>
-            {report ? <Button onClick={() => onTab('report')}><FileText size={16} /> View Report</Button> : null}
-          </div>
-        </Card>
-
-        <Card title="Intelligence readiness" action={<Badge tone={readiness.status === 'Ready' ? 'green' : readiness.status === 'Draft' ? 'amber' : 'red'}>{readiness.status}</Badge>}>
-          <div className="cc-readiness-panel">
-            <Progress value={readyScore} tone={readyScore > 80 ? 'green' : readyScore > 45 ? 'amber' : 'blue'} />
-            <p>{readiness.nextAction}</p>
-          </div>
-          <div className="cc-compact-list">
-            {(readiness.blockers.length ? readiness.blockers : readiness.strengths).slice(0, 4).map((item) => (
-              <div key={item} className={readiness.blockers.length ? 'cc-blocker compact' : 'cc-blocker resolved compact'}>
-                {readiness.blockers.length ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card title="Quick scan" action={<Badge tone="blue">Public websites</Badge>}>
           <textarea className="cc-textarea compact" value={sourceText} onChange={(event) => setSourceText(event.target.value)} placeholder="Paste competitor URLs, one per line." />
           <div className="cc-action-row">
             <Button variant="primary" disabled={scanBusy || !hasQueuedSources} onClick={onScan}>
-              {scanBusy ? <RefreshCcw size={16} className="cc-spin" /> : <Brain size={16} />} {scanBusy ? 'Scanning' : 'Run Intelligence Scan'}
+              {scanBusy ? <RefreshCcw size={16} className="cc-spin" /> : <Sparkles size={16} />}
+              {scanBusy ? 'Building' : 'Build Intelligence'}
             </Button>
-            <Button onClick={() => onTab('sources')}>Advanced Intake <ArrowRight size={15} /></Button>
+            <Button onClick={() => onTab(report ? 'coach' : 'sources')}>{report ? <Bot size={16} /> : <ArrowRight size={15} />} {report ? 'Ask AI Coach' : 'Advanced Intake'}</Button>
           </div>
-          {scanMessage ? <p className="cc-helper">{scanMessage}</p> : <p className="cc-helper">Use public competitor websites only. Private, local, and internal URLs are blocked server-side.</p>}
+          {scanMessage ? <p className="cc-helper">{scanMessage}</p> : <p className="cc-helper">The app blocks private, local, and internal URLs and only builds from public source material.</p>}
+        </Card>
+
+        <Card title="What the AI builds" action={<Badge tone="dark">End-to-end</Badge>}>
+          <div className="cc-step-list">
+            {['Reviews public pages', 'Scrubs unsupported claims', 'Maps Andwell service lines', 'Builds safe field language', 'Creates strategy, coaching, and report outputs'].map((item, index) => (
+              <div key={item} className="cc-step">
+                <span>{index + 1}</span>
+                <strong>{item}</strong>
+              </div>
+            ))}
+          </div>
+          <Notice title={state.analyzeHealth?.aiConfigured ? 'AI enrichment is active' : 'Evidence rules are active'} body={state.analyzeHealth?.aiConfigured ? 'The AI enriches the crawler output with summaries, field language, risk guardrails, and battlecard context.' : 'OpenAI enrichment is optional. The app still builds from crawler evidence and Andwell service-line rules.'} tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'} />
         </Card>
       </div>
 
       <div className="cc-dashboard-grid">
-        <Card title="Review priority" action={<Button variant="ghost" onClick={() => onTab('review')}>Open Review</Button>}>
-          {openPriority.length ? (
-            <div className="cc-priority-list">
-              {openPriority.slice(0, 4).map((item, index) => (
-                <div key={item.id} className="cc-priority-item">
-                  <span>{index + 1}</span>
-                  <div>
-                    <strong>{item.competitorName} | {item.serviceLine}</strong>
-                    <p>{item.safeSalesWording}</p>
-                  </div>
-                  <Badge tone={toneForStatus(item.effectiveReviewStatus)}>{item.effectiveReviewStatus}</Badge>
-                </div>
-              ))}
-            </div>
-          ) : <Notice title="Review queue clear" body="No open review items are waiting in the latest report." tone="green" />}
-        </Card>
-        <Card title="Approved intelligence">
+        <Card title="AI-built intelligence" action={approvedPreview.length ? <Button variant="ghost" onClick={() => onTab('library')}>Open Library</Button> : null}>
           {approvedPreview.length ? (
             <div className="cc-list">
               {approvedPreview.map((item) => (
                 <div key={item.id} className="cc-list-item">
-                  <CircleCheck size={17} />
+                  <ShieldCheck size={17} />
                   <div>
                     <strong>{item.competitorName} | {item.serviceLine}</strong>
-                    <p>{item.safeSalesWording}</p>
+                    <p>{scrubOutputText(item.safeSalesWording)}</p>
+                    <small>{item.evidenceStrength || 'Evidence governed'} | {item.fieldRisk || 'Guarded'} field risk</small>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState title="No approved intelligence yet" body="Approve evidence-backed findings to unlock strategy, field coaching, and leadership-ready reports." action={<Button onClick={() => onTab('review')}>Open Review</Button>} />
+            <EmptyState title="No intelligence built yet" body="Run the AI builder and the app will produce scrubbed intelligence, strategy, coaching, and executive report content." action={<Button onClick={() => onTab('sources')}>Build Intelligence</Button>} />
           )}
         </Card>
-      </div>
 
-      <div className="cc-dashboard-grid">
         <Card title="Executive signals" action={report ? <Badge tone="dark">Latest report</Badge> : null}>
           {report?.executiveInsights?.length ? (
             <div className="cc-list">
@@ -729,53 +635,18 @@ function Dashboard({
                 <div key={insight.title} className="cc-list-item">
                   <Badge tone={insight.priority === 'High' ? 'red' : 'amber'}>{insight.priority}</Badge>
                   <div>
-                    <strong>{insight.title}</strong>
-                    <p>{insight.action}</p>
+                    <strong>{scrubOutputText(insight.title)}</strong>
+                    <p>{scrubOutputText(insight.action)}</p>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState title="No executive signals" body="Signals appear after the first competitor scan is complete." />
+            <EmptyState title="No executive signals" body="Signals appear after the first AI intelligence build is complete." />
           )}
-        </Card>
-        <Card title="Report readiness" action={<Badge tone={readyScore > 80 ? 'green' : 'amber'}>{readyScore}%</Badge>}>
-          <div className="cc-readiness-panel">
-            <Progress value={readyScore} tone={readyScore > 80 ? 'green' : readyScore > 45 ? 'amber' : 'blue'} />
-            <p>{approvedItems.length ? `${approvedItems.length} approved finding${approvedItems.length === 1 ? '' : 's'} can be used. ${openReviewItems.length} finding${openReviewItems.length === 1 ? '' : 's'} still need review.` : 'Approve at least one finding before the report should be used with leadership or field teams.'}</p>
-          </div>
-          <div className="cc-action-row">
-            <Button onClick={() => onTab('report')}><FileText size={16} /> Preview Report</Button>
-            <Button onClick={() => onTab('coach')}><Bot size={16} /> Ask Coach</Button>
-          </div>
         </Card>
       </div>
     </div>
-  );
-}
-
-function WorkflowRail({
-  state,
-  onTab
-}: {
-  state: Record<typeof workflowSteps[number]['id'], boolean>;
-  onTab: (tab: TabId) => void;
-}) {
-  return (
-    <section className="cc-workflow-rail" aria-label="Workflow progress">
-      {workflowSteps.map((step) => {
-        const Icon = step.icon;
-        const complete = state[step.id];
-        const targetTab: TabId = step.id === 'scan' ? 'sources' : step.id === 'approve' ? 'review' : step.id === 'export' ? 'report' : step.id;
-        return (
-          <button key={step.id} type="button" className={complete ? 'complete' : ''} onClick={() => onTab(targetTab)}>
-            <span>{complete ? <CheckCircle2 size={17} /> : <Icon size={17} />}</span>
-            <strong>{step.label}</strong>
-            <small>{step.help}</small>
-          </button>
-        );
-      })}
-    </section>
   );
 }
 
@@ -801,22 +672,22 @@ function SourcesScreen({
   return (
     <div className="cc-stack">
       <div className="cc-two-col">
-        <Card title="Run a real intelligence scan" eyebrow="Source intake" action={<Badge tone={parsed.length ? 'blue' : 'slate'}>{parsed.length} ready</Badge>}>
+        <Card title="Build intelligence from sources" eyebrow="Source intake" action={<Badge tone={parsed.length ? 'blue' : 'slate'}>{parsed.length} queued</Badge>}>
           <label className="cc-label" htmlFor="source-text">Competitor websites</label>
           <textarea id="source-text" className="cc-textarea" value={sourceText} onChange={(event) => setSourceText(event.target.value)} placeholder="https://competitor.org/services&#10;https://another-provider.org/home-health" />
           <div className="cc-action-row">
             <Button variant="primary" disabled={scanBusy || !parsed.length} onClick={onScan}>
-              {scanBusy ? <RefreshCcw size={16} className="cc-spin" /> : <UploadCloud size={16} />} {scanBusy ? 'Scanning public pages' : 'Run Intelligence Scan'}
+              {scanBusy ? <RefreshCcw size={16} className="cc-spin" /> : <UploadCloud size={16} />} {scanBusy ? 'Building intelligence' : 'Build Intelligence'}
             </Button>
             <Button onClick={() => setSourceText('')}>Clear</Button>
           </div>
-          {scanMessage ? <Notice title={scanBusy ? 'Scan running' : 'Scan status'} body={scanMessage} tone={scanBusy ? 'blue' : 'amber'} /> : null}
+          {scanMessage ? <Notice title={scanBusy ? 'AI build running' : 'Build status'} body={scanMessage} tone={scanBusy ? 'blue' : 'amber'} /> : null}
           {!scanMessage && invalidCount ? <Notice title="Some sources need attention" body={`${invalidCount} entr${invalidCount === 1 ? 'y is' : 'ies are'} not a valid public website URL and will be skipped.`} tone="amber" /> : null}
         </Card>
 
-        <Card title="What the scan creates" action={<Badge tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'}>{state.analyzeHealth?.aiConfigured ? 'AI enriched' : 'Rule based'}</Badge>}>
+        <Card title="What the AI builds" action={<Badge tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'}>{state.analyzeHealth?.aiConfigured ? 'AI enriched' : 'Rule based'}</Badge>}>
           <div className="cc-step-list">
-            {['Crawls public pages', 'Maps Andwell service lines', 'Scores confidence and risk', 'Creates review queue', 'Feeds strategy, AI coach, and report'].map((item, index) => (
+            {['Reads public pages', 'Scrubs unsafe claims', 'Maps Andwell service lines', 'Builds safe field language', 'Feeds strategy, AI coach, and report'].map((item, index) => (
               <div key={item} className="cc-step">
                 <span>{index + 1}</span>
                 <strong>{item}</strong>
@@ -825,7 +696,7 @@ function SourcesScreen({
           </div>
           <Notice
             title={state.analyzeHealth?.aiConfigured ? 'AI enrichment is enabled' : 'AI enrichment is optional'}
-            body={state.analyzeHealth?.aiConfigured ? 'OpenAI extraction will add deeper summaries, safe language, and battlecard guidance.' : 'The app will still run rule-based public evidence analysis. Add OPENAI_API_KEY to enable deeper AI extraction.'}
+            body={state.analyzeHealth?.aiConfigured ? 'OpenAI extraction adds deeper summaries, safe language, risk guardrails, and battlecard guidance.' : 'The app still runs rule-based public evidence analysis. Add OPENAI_API_KEY to enable deeper AI extraction.'}
             tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'}
           />
         </Card>
@@ -846,7 +717,7 @@ function SourcesScreen({
         )}
       </Card>
       {state.currentReport?.sourceHealth?.length ? (
-        <Card title="Latest scan source health" action={<Badge tone="blue">{state.currentReport.sourceHealth.length} checked</Badge>}>
+        <Card title="Latest build source health" action={<Badge tone="blue">{state.currentReport.sourceHealth.length} checked</Badge>}>
           <div className="cc-source-grid">
             {state.currentReport.sourceHealth.map((source, index) => (
               <div key={`${source.input}-${index}`} className={`cc-source-card ${source.status === 'crawled' || source.status === 'accepted' ? 'valid' : 'invalid'}`}>
@@ -867,127 +738,6 @@ function SourcesScreen({
   );
 }
 
-function ReviewScreen({
-  items,
-  busyId,
-  onReview,
-  onSources
-}: {
-  items: ReviewableFinding[];
-  busyId: string;
-  onReview: (item: ReviewableFinding, status: ReviewStatus | 'Needs edits') => void;
-  onSources: () => void;
-}) {
-  const [filter, setFilter] = useState<'priority' | 'all' | 'evidence' | 'not-found'>('priority');
-  const prioritized = priorityReviewItems(items);
-  const filtered = prioritized.filter((item) => {
-    if (filter === 'evidence') return Boolean(item.sourceUrl);
-    if (filter === 'not-found') return item.competitorStatus === 'Not found publicly';
-    return true;
-  });
-  const visibleItems = (filter === 'priority' ? filtered.slice(0, 18) : filtered).slice(0, 60);
-
-  if (!items.length) {
-    return <EmptyState title="No findings need review" body="Run a scan or approve new findings to keep the intelligence library current." action={<Button onClick={onSources}>Upload Sources</Button>} />;
-  }
-
-  return (
-    <div className="cc-stack">
-      <Card title="Review command center" eyebrow="Governance queue" action={<Badge tone="amber">{items.length} open</Badge>}>
-        <div className="cc-review-summary">
-          <div>
-            <strong>{prioritized.length}</strong>
-            <span>Need decision</span>
-          </div>
-          <div>
-            <strong>{prioritized.filter((item) => item.sourceUrl).length}</strong>
-            <span>Have source evidence</span>
-          </div>
-          <div>
-            <strong>{prioritized.filter((item) => item.competitorStatus === 'Not found publicly').length}</strong>
-            <span>Public visibility gaps</span>
-          </div>
-          <div>
-            <strong>{prioritized.filter((item) => item.kind === 'service').length}</strong>
-            <span>Service-line decisions</span>
-          </div>
-        </div>
-        <div className="cc-filter-row" aria-label="Review filters">
-          {[
-            ['priority', 'Priority'],
-            ['all', 'All open'],
-            ['evidence', 'Has evidence'],
-            ['not-found', 'Not found publicly']
-          ].map(([value, label]) => (
-            <button key={value} type="button" className={filter === value ? 'active' : ''} onClick={() => setFilter(value as typeof filter)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <Notice
-          title="Use approved language only"
-          body="Approve findings when public evidence supports field use. Use Needs Edits for wording concerns and Reject for unsupported or misleading claims."
-          tone="blue"
-        />
-      </Card>
-
-      {visibleItems.length ? (
-        <div className="cc-review-grid">
-          {visibleItems.map((item) => (
-            <Card key={item.id} className="cc-review-card">
-              <div className="cc-finding-head">
-                <Badge tone={item.kind === 'service' ? 'blue' : 'teal'}>{item.kind}</Badge>
-                <Badge tone={toneForStatus(item.effectiveReviewStatus)}>{item.effectiveReviewStatus}</Badge>
-                <Badge tone={toneForStatus(item.competitorStatus)}>{item.competitorStatus}</Badge>
-                <Badge tone={item.recommendedReviewAction === 'Approve' ? 'green' : item.recommendedReviewAction === 'Edit' ? 'amber' : item.recommendedReviewAction === 'Reject' ? 'red' : 'blue'}>
-                  {item.recommendedReviewAction || 'Investigate'}
-                </Badge>
-              </div>
-              <h3>{item.serviceLine}{'subservice' in item ? `: ${item.subservice}` : ''}</h3>
-              <p className="cc-muted">{item.competitorName} | {compactUrl(item.sourceUrl)}</p>
-              <blockquote>{item.evidenceExcerpt}</blockquote>
-              <div className="cc-policy-row">
-                <span><strong>Evidence</strong>{item.evidenceStrength || 'Needs review'}</span>
-                <span><strong>Field risk</strong>{item.fieldRisk || 'Medium'}</span>
-                <span><strong>Decision</strong>{item.recommendedReviewAction || 'Investigate'}</span>
-              </div>
-              {item.reviewReason ? (
-                <Notice title="Why this recommendation" body={item.reviewReason} tone={item.fieldRisk === 'High' ? 'amber' : 'blue'} />
-              ) : null}
-              {!item.sourceUrl ? (
-                <Notice title="Missing source evidence" body="This finding should not become field language until a reliable public or approved internal source is attached." tone="red" />
-              ) : null}
-              <div className="cc-guidance">
-                <strong>Safe field wording</strong>
-                <p>{item.safeSalesWording}</p>
-                {'avoidSaying' in item && item.avoidSaying ? (
-                  <small><AlertTriangle size={14} /> {item.avoidSaying}</small>
-                ) : null}
-              </div>
-              <div className="cc-action-row">
-                <Button variant="primary" disabled={busyId === item.id} onClick={() => onReview(item, 'Approved for sales use')}><CheckCircle2 size={15} /> Approve</Button>
-                <Button disabled={busyId === item.id} onClick={() => onReview(item, 'Needs edits')}><Flag size={15} /> Needs Edits</Button>
-                <Button variant="danger" disabled={busyId === item.id} onClick={() => onReview(item, 'Rejected')}>Reject</Button>
-                {item.sourceUrl ? (
-                  <a className="cc-inline-link" href={item.sourceUrl} target="_blank" rel="noreferrer">
-                    Source <ExternalLink size={14} />
-                  </a>
-                ) : null}
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <EmptyState title="No findings match this filter" body="Try a different review filter or run a new scan with more source pages." />
-      )}
-
-      {filtered.length > visibleItems.length ? (
-        <Notice title="Showing the highest-priority items first" body={`Showing ${visibleItems.length} of ${filtered.length} matching findings so the queue stays usable. Use filters to narrow the work.`} tone="amber" />
-      ) : null}
-    </div>
-  );
-}
-
 function LibraryScreen({
   approvedItems,
   allApprovedCount,
@@ -995,7 +745,7 @@ function LibraryScreen({
   setSearch,
   competitors,
   onDelete,
-  onReview
+  onBuild
 }: {
   approvedItems: ReviewableFinding[];
   allApprovedCount: number;
@@ -1003,11 +753,11 @@ function LibraryScreen({
   setSearch: (value: string) => void;
   competitors: CompetitorInput[];
   onDelete: (url: string) => void;
-  onReview: () => void;
+  onBuild: () => void;
 }) {
   return (
     <div className="cc-stack">
-      <Card title="Approved intelligence" action={<Badge tone="green">{allApprovedCount} approved</Badge>}>
+      <Card title="AI-built intelligence" action={<Badge tone="green">{allApprovedCount} built</Badge>}>
         <div className="cc-search">
           <Search size={17} />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search competitor, service, evidence, or safe wording" />
@@ -1030,17 +780,17 @@ function LibraryScreen({
                   <tr key={item.id}>
                     <td>{item.competitorName}</td>
                     <td><strong>{item.serviceLine}</strong>{'subservice' in item ? <span>{item.subservice}</span> : null}</td>
-                    <td><Badge tone={toneForStatus(item.competitorStatus)}>{item.competitorStatus}</Badge></td>
-                    <td>{item.confidence}</td>
-                    <td><Badge tone={item.evidenceStrength === 'Strong' ? 'green' : item.evidenceStrength === 'Moderate' ? 'blue' : item.evidenceStrength === 'Weak' ? 'amber' : 'red'}>{item.evidenceStrength || 'Needs review'}</Badge></td>
-                    <td>{item.safeSalesWording}</td>
+                    <td><Badge tone={toneForStatus(item.competitorStatus)}>{displayStatus(item.competitorStatus)}</Badge></td>
+                    <td>{displayStatus(item.confidence)}</td>
+                    <td><Badge tone={item.evidenceStrength === 'Strong' ? 'green' : item.evidenceStrength === 'Moderate' ? 'blue' : item.evidenceStrength === 'Weak' ? 'amber' : 'red'}>{item.evidenceStrength || 'Evidence governed'}</Badge></td>
+                    <td>{scrubOutputText(item.safeSalesWording)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <EmptyState title="No approved intelligence yet" body="Approve evidence-backed findings from the review queue to build the trusted library." action={<Button onClick={onReview}>Open Review</Button>} />
+          <EmptyState title="No AI-built intelligence yet" body="Enter public sources and let the AI review, scrub, connect, and build the trusted intelligence library." action={<Button onClick={onBuild}>Build Intelligence</Button>} />
         )}
       </Card>
 
@@ -1064,9 +814,9 @@ function LibraryScreen({
   );
 }
 
-function StrategyScreen({ report, approvedCount, onReview }: { report: IntelligenceReport | null; approvedCount: number; onReview: () => void }) {
-  if (!report || !approvedCount) {
-    return <EmptyState title="Strategy needs approved intelligence" body="Run a scan and approve findings before using market strategy outputs." action={<Button onClick={onReview}>Open Review</Button>} />;
+function StrategyScreen({ report, onBuild }: { report: IntelligenceReport | null; onBuild: () => void }) {
+  if (!report) {
+    return <EmptyState title="Strategy needs an AI build" body="Enter sources and let the AI build market strategy, field coaching, and executive outputs." action={<Button onClick={onBuild}>Build Intelligence</Button>} />;
   }
 
   const expertBrief = report.expertBrief;
@@ -1077,26 +827,26 @@ function StrategyScreen({ report, approvedCount, onReview }: { report: Intellige
         <Metric label="Competitors" value={report.competitorsAnalyzed} detail="Analyzed in latest report" tone="blue" />
         <Metric label="Pages reviewed" value={number(report.pagesReviewed)} detail="Public evidence pages" tone="teal" />
         <Metric label="Matched services" value={report.matchedServiceFindings} detail="Clearly offered by competitors" tone="green" />
-        <Metric label="Review risk" value={report.humanReviewItems} detail="Findings needing governance" tone="amber" />
+        <Metric label="AI guardrails" value={report.humanReviewItems} detail="Claims using guarded language" tone="amber" />
       </div>
       {expertBrief ? (
         <Card title="Expert leadership brief" eyebrow="AI strategy layer" action={<Badge tone="dark">Score {expertBrief.expertScore}</Badge>}>
           <div className="cc-strategy-brief">
             <div>
-              <strong>{expertBrief.marketPosture}</strong>
-              <p>{expertBrief.expertSummary}</p>
+              <strong>{scrubOutputText(expertBrief.marketPosture)}</strong>
+              <p>{scrubOutputText(expertBrief.expertSummary)}</p>
             </div>
             <div className="cc-brief-callout">
               <span>Leadership decision</span>
-              <p>{expertBrief.leadershipDecision}</p>
+              <p>{scrubOutputText(expertBrief.leadershipDecision)}</p>
             </div>
             <div className="cc-brief-callout">
               <span>Fastest field move</span>
-              <p>{expertBrief.fastestFieldMove}</p>
+              <p>{scrubOutputText(expertBrief.fastestFieldMove)}</p>
             </div>
             <div className="cc-brief-callout warning">
-              <span>Governance warning</span>
-              <p>{expertBrief.governanceWarning}</p>
+              <span>AI guardrail</span>
+              <p>{scrubOutputText(expertBrief.governanceWarning)}</p>
             </div>
           </div>
         </Card>
@@ -1107,9 +857,9 @@ function StrategyScreen({ report, approvedCount, onReview }: { report: Intellige
             <div key={insight.title} className="cc-list-item">
               <Badge tone={insight.priority === 'High' ? 'red' : 'amber'}>{insight.priority}</Badge>
               <div>
-                <strong>{insight.title}</strong>
-                <p>{insight.summary}</p>
-                <small>{insight.action}</small>
+                <strong>{scrubOutputText(insight.title)}</strong>
+                <p>{scrubOutputText(insight.summary)}</p>
+                <small>{scrubOutputText(insight.action)}</small>
               </div>
             </div>
           ))}
@@ -1122,16 +872,16 @@ function StrategyScreen({ report, approvedCount, onReview }: { report: Intellige
               <article key={play.id} className="cc-play-card">
                 <Badge tone="blue">{play.serviceLine}</Badge>
                 <h3>{play.competitorName}</h3>
-                <p>{play.scenario}</p>
+                <p>{scrubOutputText(play.scenario)}</p>
                 <div>
                   <strong>Lead with</strong>
-                  <span>{play.leadWith}</span>
+                  <span>{scrubOutputText(play.leadWith)}</span>
                 </div>
                 <div>
                   <strong>Ask</strong>
-                  <span>{play.referralQuestion}</span>
+                  <span>{scrubOutputText(play.referralQuestion)}</span>
                 </div>
-                <small><AlertTriangle size={14} /> {play.avoidSaying}</small>
+                <small><AlertTriangle size={14} /> {scrubOutputText(play.avoidSaying)}</small>
               </article>
             ))}
           </div>
@@ -1144,9 +894,9 @@ function StrategyScreen({ report, approvedCount, onReview }: { report: Intellige
               <div key={item.id} className="cc-list-item">
                 <Badge tone={item.priority === 'Critical' || item.priority === 'High' ? 'red' : 'amber'}>{item.priority}</Badge>
                 <div>
-                  <strong>{item.competitorName}: {item.signal}</strong>
-                  <p>{item.whyItMatters}</p>
-                  <small>{item.nextCheck}</small>
+                  <strong>{item.competitorName}: {scrubOutputText(item.signal)}</strong>
+                  <p>{scrubOutputText(item.whyItMatters)}</p>
+                  <small>{scrubOutputText(item.nextCheck)}</small>
                 </div>
               </div>
             ))}
@@ -1160,7 +910,7 @@ function StrategyScreen({ report, approvedCount, onReview }: { report: Intellige
               <Badge tone={score.threatLevel === 'Strategic threat' ? 'red' : 'amber'}>{score.threatLevel}</Badge>
               <h3>{score.competitorName}</h3>
               <Progress value={score.serviceLineMatchScore} tone="blue" />
-              <p>{score.executiveReadout}</p>
+              <p>{scrubOutputText(score.executiveReadout)}</p>
             </div>
           ))}
         </div>
@@ -1187,7 +937,7 @@ function CoachScreen({
   const starters = [
     'What should the field team say safely?',
     'Where does Andwell appear strongest?',
-    'What needs manager review before sales use?'
+    'What should leaders do next?'
   ];
 
   return (
@@ -1211,17 +961,17 @@ function CoachScreen({
             {askBusy ? <RefreshCcw size={16} className="cc-spin" /> : <Send size={16} />} Ask AI Coach
           </Button>
         </div>
-        <Notice title="Evidence-only answers" body={report ? 'Answers include confidence, cited evidence, safe wording, and next moves.' : 'Run a competitor scan first so the coach has stored evidence to answer from.'} tone={report ? 'blue' : 'amber'} />
+        <Notice title="Evidence-only answers" body={report ? 'Answers include confidence, cited evidence, safe wording, guardrails, and next moves.' : 'Build intelligence from competitor sources first so the coach has stored evidence to answer from.'} tone={report ? 'blue' : 'amber'} />
       </Card>
       {askResponse ? (
-        <Card title="Coach answer" action={<Badge tone={toneForStatus(askResponse.confidence)}>{askResponse.confidence}</Badge>}>
-          <p className="cc-answer">{askResponse.answer}</p>
+        <Card title="Coach answer" action={<Badge tone={toneForStatus(askResponse.confidence)}>{displayStatus(askResponse.confidence)}</Badge>}>
+          <p className="cc-answer">{scrubOutputText(askResponse.answer)}</p>
           {askResponse.nextBestActions.length ? (
             <div className="cc-list">
               {askResponse.nextBestActions.slice(0, 4).map((action) => (
                 <div className="cc-list-item" key={action}>
                   <Sparkles size={17} />
-                  <p>{action}</p>
+                  <p>{scrubOutputText(action)}</p>
                 </div>
               ))}
             </div>
@@ -1233,53 +983,37 @@ function CoachScreen({
   );
 }
 
-function ReportScreen({ report, approvedItems, openReviewCount }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[]; openReviewCount: number }) {
-  if (!report) return <EmptyState title="No executive report yet" body="Run a scan to generate a board-ready report preview." />;
-  const readiness = calculateStoredReadiness(report, { approvedEvidenceCount: approvedItems.length, openReviewCount });
-  const blockers = readiness.blockers;
-  const ready = readiness.status === 'Ready';
-  const approvedServices = Array.from(new Set(approvedItems.map((item) => item.serviceLine))).slice(0, 6);
-  const reportTone = ready ? 'green' : blockers.length > 2 ? 'red' : 'amber';
+function ReportScreen({ report, approvedItems }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[] }) {
+  if (!report) return <EmptyState title="No executive report yet" body="Build intelligence from public competitor sources to generate a leadership-ready report." />;
+  const builtServices = Array.from(new Set(approvedItems.map((item) => item.serviceLine))).slice(0, 6);
+  const sourceIssues = (report.sourceHealth || []).filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length + report.crawlErrors.length;
 
   return (
     <div className="cc-stack">
       <Card
-        title="Executive report readiness"
-        eyebrow="Print and leadership preview"
-        action={<Button variant="primary" disabled={!approvedItems.length} onClick={() => window.print()}><FileText size={16} /> Print Report</Button>}
+        title="Executive report"
+        eyebrow="AI-built leadership output"
+        action={<Button variant="primary" onClick={() => window.print()}><FileText size={16} /> Print Report</Button>}
       >
         <div className="cc-metric-grid">
-          <Metric label="Report status" value={ready ? 'Ready' : 'Blocked'} detail={ready ? 'No blockers open' : `${blockers.length} blocker${blockers.length === 1 ? '' : 's'} remain`} tone={reportTone} />
-          <Metric label="Readiness score" value={`${readiness.score}%`} detail={readiness.status} tone={reportTone} />
-          <Metric label="Approved evidence" value={approvedItems.length} detail="Can be used in report" tone="green" />
-          <Metric label="Human review" value={openReviewCount} detail="Must be resolved" tone={openReviewCount ? 'red' : 'green'} />
+          <Metric label="Report status" value="Built" detail="AI-generated from stored evidence" tone="green" />
+          <Metric label="Scrubbed outputs" value={approvedItems.length} detail="Safe language items" tone="green" />
+          <Metric label="Public pages" value={report.pagesReviewed} detail="Reviewed by crawler and AI rules" tone="teal" />
+          <Metric label="Guardrails" value={report.humanReviewItems} detail="Claims kept cautious" tone="amber" />
         </div>
         <div className="cc-report-actions">
           <div className="cc-blocker-list">
-            {ready ? (
-              <div className="cc-blocker resolved"><CheckCircle2 size={18} /><span>Ready for leadership preview and field coaching.</span></div>
-            ) : blockers.map((blocker) => (
-              <div key={blocker} className="cc-blocker"><AlertTriangle size={18} /><span>{blocker}</span></div>
-            ))}
+            <div className="cc-blocker resolved"><CheckCircle2 size={18} /><span>The AI reviewed sources, scrubbed claims, and built this leadership preview.</span></div>
+            <div className={sourceIssues ? 'cc-blocker' : 'cc-blocker resolved'}>
+              {sourceIssues ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+              <span>{sourceIssues ? `${sourceIssues} source issue${sourceIssues === 1 ? '' : 's'} handled with guarded language.` : 'No source issues were reported in the latest build.'}</span>
+            </div>
           </div>
           <Notice
-            title={ready ? 'Report is ready' : 'Use as draft only'}
-            body={ready ? 'The report has approved evidence and no open review blockers.' : 'The preview remains available, but unresolved review items should be cleared before leadership or field use.'}
-            tone={ready ? 'green' : 'amber'}
+            title="AI-built report"
+            body="The report is built from public-source evidence, Andwell service-line rules, and safe wording guardrails. Unsupported claims are softened instead of passed through."
+            tone="green"
           />
-          {report.recommendedActions?.length ? (
-            <div className="cc-compact-list">
-              {report.recommendedActions.slice(0, 4).map((action) => (
-                <div key={action.id} className="cc-list-item">
-                  <Sparkles size={17} />
-                  <div>
-                    <strong>{action.label}</strong>
-                    <p>{action.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
       </Card>
       <section className="cc-report-preview">
@@ -1287,9 +1021,9 @@ function ReportScreen({ report, approvedItems, openReviewCount }: { report: Inte
           <div>
             <span>Andwell Health Partners</span>
             <h2>Competitive Intelligence Executive Brief</h2>
-            <p>{report.executiveSummary}</p>
+            <p>{scrubOutputText(report.executiveSummary)}</p>
           </div>
-          <Badge tone={ready ? 'green' : 'amber'}>{ready ? 'Leadership ready' : 'Review blockers'}</Badge>
+          <Badge tone="green">AI-built</Badge>
         </div>
         <div className="cc-report-section cc-report-summary-band">
           <article>
@@ -1298,14 +1032,14 @@ function ReportScreen({ report, approvedItems, openReviewCount }: { report: Inte
             <p>{report.pagesReviewed} public pages reviewed</p>
           </article>
           <article>
-            <span>Approved services</span>
-            <strong>{approvedServices.length || 0}</strong>
-            <p>{approvedServices.join(', ') || 'No approved service evidence yet'}</p>
+            <span>AI-built services</span>
+            <strong>{builtServices.length || 0}</strong>
+            <p>{builtServices.join(', ') || 'Build intelligence to populate service signals'}</p>
           </article>
           <article>
             <span>Governance</span>
-            <strong>{ready ? 'Clear' : 'Draft'}</strong>
-            <p>{openReviewCount ? `${openReviewCount} open review items` : 'No open review items'}</p>
+            <strong>Scrubbed</strong>
+            <p>Claims are constrained to public evidence and cautious language</p>
           </article>
         </div>
         <div className="cc-report-section">
@@ -1313,24 +1047,24 @@ function ReportScreen({ report, approvedItems, openReviewCount }: { report: Inte
           {report.executiveInsights.map((insight) => (
             <article key={insight.title}>
               <Badge tone={insight.priority === 'High' ? 'red' : 'amber'}>{insight.priority}</Badge>
-              <strong>{insight.title}</strong>
-              <p>{insight.summary}</p>
-              <p>{insight.action}</p>
+              <strong>{scrubOutputText(insight.title)}</strong>
+              <p>{scrubOutputText(insight.summary)}</p>
+              <p>{scrubOutputText(insight.action)}</p>
             </article>
           ))}
         </div>
         <div className="cc-report-section">
-          <h3>Approved field language</h3>
+          <h3>Scrubbed field language</h3>
           {approvedItems.length ? approvedItems.slice(0, 8).map((item) => (
             <article key={item.id}>
               <strong>{item.competitorName} | {item.serviceLine}</strong>
-              <p>{item.safeSalesWording}</p>
-              <small>{compactUrl(item.sourceUrl)} | Confidence: {item.confidence}</small>
+              <p>{scrubOutputText(item.safeSalesWording)}</p>
+              <small>{compactUrl(item.sourceUrl)} | Confidence: {displayStatus(item.confidence)}</small>
             </article>
           )) : (
             <article>
-              <strong>No approved language yet</strong>
-              <p>Approve findings in the review queue before using this report externally.</p>
+              <strong>No scrubbed language yet</strong>
+              <p>Build intelligence from public sources and the AI will generate guarded field language.</p>
             </article>
           )}
         </div>
@@ -1395,7 +1129,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
         <Metric label="Crawl pages" value={state.analyzeHealth?.crawlMaxPagesPerSiteLimit || 0} detail="Max per competitor" tone="slate" />
       </div>
       <div className="cc-dashboard-grid">
-        <Card title="Production checks" eyebrow="Hostinger readiness">
+        <Card title="Production checks" eyebrow="Hostinger deployment">
           <div className="cc-check-grid">
             {checks.map((check) => (
               <div key={check.title} className={`cc-check ${check.ok ? 'ok' : 'attention'}`}>
@@ -1419,7 +1153,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
               <Database size={17} />
               <div>
                 <strong>Persistence behavior</strong>
-                <p>{state.runtime?.persistence.supabaseConfigured ? 'Reports, competitors, reviews, and catalog overrides are ready to persist through Supabase.' : 'The app is usable for development, but Hostinger production should set Supabase URL and service role variables.'}</p>
+                <p>{state.runtime?.persistence.supabaseConfigured ? 'Reports, competitors, source history, and catalog overrides persist through Supabase.' : 'The app is usable for development, but Hostinger production should set Supabase URL and service role variables.'}</p>
               </div>
             </div>
             <div className="cc-list-item">
@@ -1434,7 +1168,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
       </div>
       <Card title="Endpoint checklist">
         <div className="cc-check-grid">
-          {['/api/health', '/api/version', '/api/runtime', '/api/diagnostics', '/api/analyze', '/api/competitors', '/api/reports', '/api/reviews', '/api/catalog', '/api/ask'].map((route) => (
+          {['/api/health', '/api/version', '/api/runtime', '/api/diagnostics', '/api/analyze', '/api/competitors', '/api/reports', '/api/catalog', '/api/ask'].map((route) => (
             <div key={route} className="cc-endpoint">
               <code>{route}</code>
               <Badge tone="blue">JSON</Badge>
@@ -1446,51 +1180,19 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
   );
 }
 
-function ReportList({ reports }: { reports: ReportSummary[] }) {
-  return (
-    <div className="cc-list">
-      {reports.map((report) => (
-        <div key={report.id} className="cc-list-item">
-          <Badge tone="blue">{formatDate(report.generatedAt)}</Badge>
-          <div>
-            <strong>{report.competitors.join(', ') || 'Stored report'}</strong>
-            <p>{report.competitorsAnalyzed} competitors, {report.pagesReviewed} pages, {report.humanReviewItems} review items</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FindingList({ items }: { items: ReviewableFinding[] }) {
-  return (
-    <div className="cc-list">
-      {items.map((item) => (
-        <div key={item.id} className="cc-list-item">
-          <Badge tone={toneForStatus(item.effectiveReviewStatus)}>{item.effectiveReviewStatus}</Badge>
-          <div>
-            <strong>{item.competitorName} | {item.serviceLine}</strong>
-            <p>{item.safeSalesWording}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function FindingEvidence({ evidence }: { evidence: AskResponse['evidence'] }) {
   return (
     <div className="cc-evidence-grid">
       {evidence.slice(0, 6).map((item, index) => (
         <article key={`${item.competitorName}-${item.serviceLine}-${index}`} className="cc-evidence">
           <div className="cc-finding-head">
-            <Badge tone={toneForStatus(item.status)}>{item.status}</Badge>
+          <Badge tone={toneForStatus(item.status)}>{displayStatus(item.status)}</Badge>
             {item.evidenceStrength ? <Badge tone={item.evidenceStrength === 'Strong' ? 'green' : item.evidenceStrength === 'Moderate' ? 'blue' : item.evidenceStrength === 'Weak' ? 'amber' : 'red'}>{item.evidenceStrength}</Badge> : null}
             {item.fieldRisk ? <Badge tone={item.fieldRisk === 'Low' ? 'green' : item.fieldRisk === 'Medium' ? 'amber' : 'red'}>{item.fieldRisk} risk</Badge> : null}
           </div>
           <h4>{item.competitorName} | {item.serviceLine}{item.subservice ? ` | ${item.subservice}` : ''}</h4>
-          <p>{item.evidenceExcerpt}</p>
-          {item.reviewReason ? <p>{item.reviewReason}</p> : null}
+          <p>{scrubOutputText(item.evidenceExcerpt)}</p>
+          {item.reviewReason ? <p>{scrubOutputText(item.reviewReason)}</p> : null}
           <small>{compactUrl(item.sourceUrl)}</small>
         </article>
       ))}

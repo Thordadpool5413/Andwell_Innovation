@@ -97,8 +97,8 @@ function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtr
       confidence: confidence(item?.confidence),
       evidenceExcerpt: safeText(item?.evidenceExcerpt, 'No evidence excerpt returned by AI.'),
       sourceUrl: optionalText(item?.sourceUrl),
-      safeSalesLanguage: safeText(item?.safeSalesLanguage, 'Use evidence based language and verify before sales use.'),
-      doNotSayLanguage: safeText(item?.doNotSayLanguage, 'Do not overstate competitor differences without approved evidence.')
+      safeSalesLanguage: safeText(item?.safeSalesLanguage, 'Use evidence based language and keep unsupported claims guarded.'),
+      doNotSayLanguage: safeText(item?.doNotSayLanguage, 'Do not overstate competitor differences without source evidence.')
     })) : [],
     competitorAdvantages: arrayOfStrings(raw?.competitorAdvantages),
     andwellAdvantages: arrayOfStrings(raw?.andwellAdvantages),
@@ -111,9 +111,9 @@ function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtr
       leadWith: safeText(item?.leadWith, 'Lead with Andwell service depth.'),
       referralQuestion: safeText(item?.referralQuestion, 'What specific patient need are you trying to solve?'),
       objectionResponse: safeText(item?.objectionResponse, 'Acknowledge the relationship and pivot to the specific patient need.'),
-      proofPoint: safeText(item?.proofPoint, 'Use approved evidence.'),
+      proofPoint: safeText(item?.proofPoint, 'Use source evidence.'),
       safeSalesLanguage: safeText(item?.safeSalesLanguage, 'Use evidence based language.'),
-      doNotSayLanguage: safeText(item?.doNotSayLanguage, 'Do not say the competitor does not offer a service unless confirmed by approved evidence.')
+      doNotSayLanguage: safeText(item?.doNotSayLanguage, 'Do not say the competitor does not offer a service unless confirmed by source evidence.')
     })) : [],
     rawConfidence: ['High', 'Medium', 'Low'].includes(String(raw?.rawConfidence)) ? raw.rawConfidence : 'Low'
   };
@@ -139,7 +139,7 @@ Safety and compliance rules:
 1. Use only the provided public website evidence.
 2. Never say a competitor does not offer a service only because it was not found. Use "Not found publicly".
 3. Separate clearly offered services from vague mentions, related but not equivalent language, and unclear evidence.
-4. Create sales language that is safe, evidence based, and manager review friendly.
+4. Create sales language that is safe, evidence based, and guarded when evidence is incomplete.
 5. Compare at both service line and subservice level.
 6. Prioritize pages with higher intelligenceScore when evidence conflicts.
 
