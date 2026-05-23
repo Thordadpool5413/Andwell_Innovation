@@ -818,7 +818,7 @@ function MatrixScreen({ matrix }: { matrix: AdvantageMatrix }) {
         <Metric label="Capabilities mapped" value={matrix.summary.capabilitiesMapped || 'Ready'} detail="Andwell baseline definitions" tone="blue" />
         <Metric label="Competitors compared" value={matrix.summary.competitorsCompared || 'Ready'} detail="Source-derived comparison" tone="teal" />
         <Metric label="Andwell advantages" value={matrix.summary.advantageSignals || 'Ready'} detail="Source-backed signals" tone="green" />
-        <Metric label="Evidence-limited cells" value={matrix.summary.evidenceLimited || 'Ready'} detail="Add sources to strengthen" tone="amber" />
+        <Metric label="Healthcare source matches" value={matrix.summary.providerMatches || 'Ready'} detail="CMS/NPPES provider signals" tone="amber" />
       </div>
       <Card title="Andwell Advantage Matrix" eyebrow="Capability Comparison">
         <div className="cc-filter-row">
@@ -891,7 +891,7 @@ function GrowthMapScreen({ growthMap }: { growthMap: GrowthMap }) {
         <Metric label="Growth areas identified" value={growthMap.summary.topGrowthAreas.length || 'Ready'} detail="Ranked opportunities" tone="green" />
         <Metric label="Saturated areas" value={growthMap.summary.saturatedAreas.length || 'Ready'} detail="Competitive density" tone="amber" />
         <Metric label="Field focus zones" value={growthMap.summary.fieldFocusZones.length || 'Ready'} detail="Where to act next" tone="blue" />
-        <Metric label="Evidence-limited areas" value={growthMap.summary.evidenceLimitedAreas.length || 'Ready'} detail="Add targeted sources" tone="slate" />
+        <Metric label="Geographic evidence signals" value={growthMap.summary.geographicSignals || 'Ready'} detail="Census-backed location confidence" tone="slate" />
       </div>
       <Card title="Growth Opportunity Map" eyebrow="Market Opportunity">
         <div className="cc-filter-row">

@@ -19,7 +19,7 @@ export type MatrixCell = {
 };
 
 export type MatrixRow = { capability: string; andwellBaseline: string; cells: MatrixCell[] };
-export type AdvantageMatrix = { rows: MatrixRow[]; competitors: string[]; summary: { capabilitiesMapped: number; competitorsCompared: number; advantageSignals: number; evidenceLimited: number; } };
+export type AdvantageMatrix = { rows: MatrixRow[]; competitors: string[]; summary: { capabilitiesMapped: number; competitorsCompared: number; advantageSignals: number; evidenceLimited: number; providerMatches: number; } };
 
 export type GrowthSignal = 'High Growth Opportunity' | 'Competitive Battleground' | 'White Space Opportunity' | 'Partnership Opportunity' | 'Field Focus Zone' | 'Evidence Limited' | 'Over Saturated';
 export type MarketArea = {
@@ -43,7 +43,7 @@ export type MarketArea = {
 
 export type GrowthMap = {
   areas: MarketArea[];
-  summary: { topGrowthAreas: string[]; saturatedAreas: string[]; fieldFocusZones: string[]; partnershipAreas: string[]; evidenceLimitedAreas: string[]; };
+  summary: { topGrowthAreas: string[]; saturatedAreas: string[]; fieldFocusZones: string[]; partnershipAreas: string[]; evidenceLimitedAreas: string[]; geographicSignals: number; };
 };
 
 const locationHints = ['maine', 'auburn', 'scarborough', 'lewiston', 'portland', 'york', 'cumberland', 'bangor'];
@@ -59,7 +59,7 @@ function matrixStatusFromSignals(signal: { competitorStatus: string; confidence:
 }
 
 export function buildAdvantageMatrix(report: IntelligenceReport | null): AdvantageMatrix {
-  if (!report) return { rows: [], competitors: [], summary: { capabilitiesMapped: andwellCatalog.length, competitorsCompared: 0, advantageSignals: 0, evidenceLimited: 0 } };
+  if (!report) return { rows: [], competitors: [], summary: { capabilitiesMapped: andwellCatalog.length, competitorsCompared: 0, advantageSignals: 0, evidenceLimited: 0, providerMatches: 0 } };
   const competitors = report.analyses.map((a) => a.name);
   const rows: MatrixRow[] = andwellCatalog.map((cap) => {
     const cells: MatrixCell[] = report.analyses.map((analysis) => {
@@ -92,7 +92,8 @@ export function buildAdvantageMatrix(report: IntelligenceReport | null): Advanta
       capabilitiesMapped: rows.length,
       competitorsCompared: competitors.length,
       advantageSignals: flat.filter((c) => c.status === 'Andwell advantage').length,
-      evidenceLimited: flat.filter((c) => c.status === 'Evidence limited' || c.status === 'Not clearly found').length
+      evidenceLimited: flat.filter((c) => c.status === 'Evidence limited' || c.status === 'Not clearly found').length,
+      providerMatches: report.externalDataSummary?.providerMatches || report.providerEnrichment?.reduce((sum, item) => sum + item.matches.length, 0) || 0
     }
   };
 }
@@ -105,10 +106,14 @@ function inferAreaFromReportText(text: string) {
 
 export function buildGrowthMap(report: IntelligenceReport | null, matrix: AdvantageMatrix): GrowthMap {
   if (!report) {
-    return { areas: [{ area: 'Evidence Limited', signal: 'Evidence Limited', growthOpportunityScore: 60, saturationScore: 20, andwellAdvantageScore: 50, referralSourcePotential: 55, partnershipPotential: 58, payerValuePotential: 62, evidenceConfidence: 30, fieldFocusPriority: 45, competitors: [], capabilities: andwellCatalog.slice(0, 5).map((s) => s.serviceLine), safeTalkTrack: 'Add public competitor sources to build a stronger geographic intelligence package.', avoidLanguage: 'Do not claim market coverage without source evidence.', nextMove: 'Add competitor pages with location and service detail.', sourceToAdd: 'Competitor service area pages' }], summary: { topGrowthAreas: [], saturatedAreas: [], fieldFocusZones: [], partnershipAreas: [], evidenceLimitedAreas: ['Evidence Limited'] } };
+    return { areas: [{ area: 'Evidence Limited', signal: 'Evidence Limited', growthOpportunityScore: 60, saturationScore: 20, andwellAdvantageScore: 50, referralSourcePotential: 55, partnershipPotential: 58, payerValuePotential: 62, evidenceConfidence: 30, fieldFocusPriority: 45, competitors: [], capabilities: andwellCatalog.slice(0, 5).map((s) => s.serviceLine), safeTalkTrack: 'Add public competitor sources to build a stronger geographic intelligence package.', avoidLanguage: 'Do not claim market coverage without source evidence.', nextMove: 'Add competitor pages with location and service detail.', sourceToAdd: 'Competitor service area pages' }], summary: { topGrowthAreas: [], saturatedAreas: [], fieldFocusZones: [], partnershipAreas: [], evidenceLimitedAreas: ['Evidence Limited'], geographicSignals: 0 } };
   }
 
   const areaMap = new Map<string, MarketArea>();
+  const signalByArea = new Map<string, number>();
+  (report.geographicSignals || []).forEach((signal) => {
+    signalByArea.set(signal.areaLabel, Math.max(signalByArea.get(signal.areaLabel) || 0, signal.confidence));
+  });
   for (const analysis of report.analyses) {
     const text = `${analysis.market} ${analysis.url} ${analysis.findings.map((f) => f.evidenceExcerpt).join(' ')}`;
     const area = inferAreaFromReportText(text);
@@ -119,6 +124,7 @@ export function buildGrowthMap(report: IntelligenceReport | null, matrix: Advant
     const growthOpportunityScore = clamp(55 + advantage * 4 - overlap * 2);
     const saturationScore = clamp(20 + overlap * 6);
     const evidenceConfidence = clamp(30 + analysis.findings.filter((f) => f.sourceUrl).length * 5);
+    const geoConfidence = signalByArea.get(area) || 0;
     const candidate: MarketArea = {
       area,
       signal: area === 'Evidence Limited' ? 'Evidence Limited' : overlap > 8 ? 'Competitive Battleground' : growthOpportunityScore > 72 ? 'High Growth Opportunity' : 'Field Focus Zone',
@@ -128,7 +134,7 @@ export function buildGrowthMap(report: IntelligenceReport | null, matrix: Advant
       referralSourcePotential: clamp(48 + capabilities.length * 3),
       partnershipPotential: clamp(50 + (analysis.findings.filter((f) => f.serviceLine.includes('Care') || f.serviceLine.includes('Partnership')).length * 4)),
       payerValuePotential: clamp(54 + (analysis.findings.filter((f) => f.serviceLine.includes('Value') || f.serviceLine.includes('Complex')).length * 5)),
-      evidenceConfidence,
+      evidenceConfidence: clamp((evidenceConfidence + geoConfidence) / (geoConfidence ? 2 : 1)),
       fieldFocusPriority: clamp((growthOpportunityScore + (100 - saturationScore)) / 2),
       competitors: [analysis.name],
       capabilities,
@@ -155,7 +161,8 @@ export function buildGrowthMap(report: IntelligenceReport | null, matrix: Advant
       saturatedAreas: areas.filter((a) => a.saturationScore >= 70).slice(0, 4).map((a) => a.area),
       fieldFocusZones: areas.slice(0, 5).map((a) => a.area),
       partnershipAreas: areas.sort((a, b) => b.partnershipPotential - a.partnershipPotential).slice(0, 4).map((a) => a.area),
-      evidenceLimitedAreas: areas.filter((a) => a.signal === 'Evidence Limited').map((a) => a.area)
+      evidenceLimitedAreas: areas.filter((a) => a.signal === 'Evidence Limited').map((a) => a.area),
+      geographicSignals: report.externalDataSummary?.geographicSignals || report.geographicSignals?.length || 0
     }
   };
 }
