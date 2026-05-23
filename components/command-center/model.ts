@@ -1,5 +1,5 @@
-import type { CompetitorInput, EvidenceStrength, FieldRisk, Finding, IntelligenceReport, RecommendedReviewAction, ReviewStatus, SourceHealth, SubserviceFinding } from '../../lib/types';
-import type { CatalogOverride, StoredReview } from '../../lib/store';
+import type { CompetitorInput, EvidenceStrength, FieldRisk, Finding, IntelligenceReport, ReviewStatus, SourceHealth, SubserviceFinding } from '../../lib/types';
+import type { CatalogOverride } from '../../lib/store';
 
 export type TabId = 'dashboard' | 'sources' | 'matrix' | 'map' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
 
@@ -80,7 +80,10 @@ export type AskResponse = {
     safeSalesWording: string;
     reviewStatus?: ReviewStatus;
     evidenceStrength?: EvidenceStrength;
-    recommendedReviewAction?: RecommendedReviewAction;
+    recommendedActionSignal?: string;
+    governanceReason?: string;
+    // Compatibility fields for legacy stored payloads.
+    recommendedReviewAction?: string;
     reviewReason?: string;
     fieldRisk?: FieldRisk;
     aiReliability?: string;
@@ -96,7 +99,6 @@ export type CommandCenterState = {
   competitors: CompetitorInput[];
   reports: ReportSummary[];
   currentReport: IntelligenceReport | null;
-  reviews: StoredReview[];
   catalog: CatalogItem[];
   analyzeHealth: AnalyzeHealth | null;
   runtime: RuntimeInfo | null;

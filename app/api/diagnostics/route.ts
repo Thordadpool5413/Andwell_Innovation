@@ -17,7 +17,6 @@ export async function GET() {
     data: {
       competitors: store.competitors.length,
       reports: store.reports.length,
-      reviews: store.reviews.length,
       catalogOverrides: store.catalogOverrides.length,
       latestReportId: latest?.id || null,
       latestReportGeneratedAt: latest?.generatedAt || null,

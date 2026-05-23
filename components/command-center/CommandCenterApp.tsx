@@ -47,7 +47,6 @@ const initialState: CommandCenterState = {
   competitors: [],
   reports: [],
   currentReport: null,
-  reviews: [],
   catalog: [],
   analyzeHealth: null,
   runtime: null
@@ -204,7 +203,6 @@ export default function CommandCenterApp() {
         competitors: competitorsPayload.competitors,
         reports: reportsPayload.reports,
         currentReport: reportPayload.report,
-        reviews: [],
         catalog: catalogPayload.catalog,
         analyzeHealth: analyzePayload,
         runtime: runtimePayload
@@ -1447,7 +1445,7 @@ function FindingEvidence({ evidence }: { evidence: AskResponse['evidence'] }) {
           </div>
           <h4>{item.competitorName} | {item.serviceLine}{item.subservice ? ` | ${item.subservice}` : ''}</h4>
           <p>{scrubOutputText(item.evidenceExcerpt)}</p>
-          {item.reviewReason ? <p>{scrubOutputText(item.reviewReason)}</p> : null}
+          {(item.governanceReason || item.reviewReason) ? <p>{scrubOutputText(item.governanceReason || item.reviewReason)}</p> : null}
           <small>{compactUrl(item.sourceUrl)}</small>
         </article>
       ))}
