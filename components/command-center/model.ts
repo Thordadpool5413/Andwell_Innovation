@@ -102,6 +102,10 @@ export type CommandCenterState = {
   catalog: CatalogItem[];
   analyzeHealth: AnalyzeHealth | null;
   runtime: RuntimeInfo | null;
+  scanJobId?: string | null;
+  scanStatus?: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out' | null;
+  scanProgress?: { done: number; total: number } | null;
+  scanWarnings?: string[];
 };
 
 export type ReviewableFinding = (Finding | SubserviceFinding) & {

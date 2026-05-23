@@ -3,7 +3,7 @@ import path from 'path';
 import type { Collection } from 'mongodb';
 import { getMongoDb, isMongoConfigured } from './mongodb';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
-import type { CompetitorInput, IntelligenceReport, ReviewStatus } from './types';
+import type { AnalyzeJob, CompetitorInput, IntelligenceReport, ReviewStatus } from './types';
 
 export type StoredReview = {
   id: string;
@@ -29,6 +29,7 @@ export type HubStore = {
   updatedAt: string;
   competitors: CompetitorInput[];
   reports: IntelligenceReport[];
+  scanJobs: AnalyzeJob[];
   reviews: StoredReview[];
   catalogOverrides: CatalogOverride[];
 };
@@ -43,10 +44,11 @@ let mongoUnavailable = false;
 let supabaseUnavailable = false;
 
 const emptyStore = (): HubStore => ({
-  version: 3,
+  version: 4,
   updatedAt: new Date().toISOString(),
   competitors: [],
   reports: [],
+  scanJobs: [],
   reviews: [],
   catalogOverrides: []
 });
@@ -61,9 +63,10 @@ async function collection<T extends object>(name: string): Promise<Collection<T>
 }
 
 async function mongoReadStore(): Promise<HubStore> {
-  const [competitors, reports, reviews, catalogOverrides] = await Promise.all([
+  const [competitors, reports, scanJobs, reviews, catalogOverrides] = await Promise.all([
     collection<CompetitorInput>('competitors').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ name: 1 }).toArray()),
     collection<IntelligenceReport>('reports').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ generatedAt: -1 }).limit(100).toArray()),
+    collection<AnalyzeJob>('scanJobs').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).limit(1000).toArray()),
     collection<StoredReview>('reviews').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(10000).toArray()),
     collection<CatalogOverride>('catalogOverrides').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ serviceLine: 1 }).toArray())
   ]);
@@ -73,6 +76,7 @@ async function mongoReadStore(): Promise<HubStore> {
     updatedAt: new Date().toISOString(),
     competitors,
     reports,
+    scanJobs,
     reviews,
     catalogOverrides
   };
@@ -84,15 +88,17 @@ function assertSupabase(action: string, error: { message: string } | null) {
 
 async function supabaseReadStore(): Promise<HubStore> {
   const supabase = getSupabaseClient();
-  const [competitorsResult, reportsResult, reviewsResult, catalogResult] = await Promise.all([
+  const [competitorsResult, reportsResult, scanJobsResult, reviewsResult, catalogResult] = await Promise.all([
     supabase.from('cih_competitors').select('payload').order('name', { ascending: true }).limit(500),
     supabase.from('cih_reports').select('payload').order('generated_at', { ascending: false }).limit(100),
+    supabase.from('cih_scan_jobs').select('payload').order('created_at', { ascending: false }).limit(1000),
     supabase.from('cih_reviews').select('payload').order('updated_at', { ascending: false }).limit(10000),
     supabase.from('cih_catalog_overrides').select('payload').order('service_line', { ascending: true })
   ]);
 
   assertSupabase('read competitors', competitorsResult.error);
   assertSupabase('read reports', reportsResult.error);
+  assertSupabase('read scan jobs', scanJobsResult.error);
   assertSupabase('read reviews', reviewsResult.error);
   assertSupabase('read catalog overrides', catalogResult.error);
 
@@ -101,6 +107,7 @@ async function supabaseReadStore(): Promise<HubStore> {
     updatedAt: new Date().toISOString(),
     competitors: (competitorsResult.data || []).map((row) => row.payload as CompetitorInput),
     reports: (reportsResult.data || []).map((row) => row.payload as IntelligenceReport),
+    scanJobs: (scanJobsResult.data || []).map((row) => row.payload as AnalyzeJob),
     reviews: (reviewsResult.data || []).map((row) => row.payload as StoredReview),
     catalogOverrides: (catalogResult.data || []).map((row) => row.payload as CatalogOverride)
   };
@@ -116,6 +123,7 @@ async function jsonReadStore(): Promise<HubStore> {
       ...parsed,
       competitors: parsed.competitors || [],
       reports: parsed.reports || [],
+      scanJobs: parsed.scanJobs || [],
       reviews: parsed.reviews || [],
       catalogOverrides: parsed.catalogOverrides || []
     };
@@ -168,9 +176,10 @@ export async function writeStore(store: HubStore) {
   if (!isMongoConfigured() || mongoUnavailable) return jsonWriteStore(store);
 
   try {
-    const [competitorsCol, reportsCol, reviewsCol, catalogCol] = await Promise.all([
+    const [competitorsCol, reportsCol, scanJobsCol, reviewsCol, catalogCol] = await Promise.all([
       collection<CompetitorInput>('competitors'),
       collection<IntelligenceReport>('reports'),
+      collection<AnalyzeJob>('scanJobs'),
       collection<StoredReview>('reviews'),
       collection<CatalogOverride>('catalogOverrides')
     ]);
@@ -178,6 +187,7 @@ export async function writeStore(store: HubStore) {
     await Promise.all([
       competitorsCol.deleteMany({}),
       reportsCol.deleteMany({}),
+      scanJobsCol.deleteMany({}),
       reviewsCol.deleteMany({}),
       catalogCol.deleteMany({})
     ]);
@@ -185,6 +195,7 @@ export async function writeStore(store: HubStore) {
     await Promise.all([
       store.competitors.length ? competitorsCol.insertMany(store.competitors) : Promise.resolve(),
       store.reports.length ? reportsCol.insertMany(store.reports) : Promise.resolve(),
+      store.scanJobs.length ? scanJobsCol.insertMany(store.scanJobs) : Promise.resolve(),
       store.reviews.length ? reviewsCol.insertMany(store.reviews) : Promise.resolve(),
       store.catalogOverrides.length ? catalogCol.insertMany(store.catalogOverrides) : Promise.resolve()
     ]);
@@ -229,6 +240,15 @@ function catalogOverrideRow(override: CatalogOverride) {
     service_line: override.serviceLine,
     payload: override,
     updated_at: override.updatedAt
+  };
+}
+
+function scanJobRow(job: AnalyzeJob) {
+  return {
+    id: job.id,
+    created_at: job.createdAt,
+    payload: job,
+    updated_at: new Date().toISOString()
   };
 }
 
@@ -357,6 +377,75 @@ export async function saveReport(report: IntelligenceReport) {
   });
   store.competitors = [...byUrl.values()].slice(0, 500);
   return writeStore(store);
+}
+
+export async function saveScanJob(job: AnalyzeJob) {
+  if (isSupabaseConfigured() && !supabaseUnavailable) {
+    try {
+      const result = await getSupabaseClient().from('cih_scan_jobs').upsert(scanJobRow(job), { onConflict: 'id' });
+      assertSupabase('upsert scan job', result.error);
+      return job;
+    } catch (error) {
+      supabaseUnavailable = true;
+      logPersistenceFallback('Supabase', error);
+    }
+  }
+
+  if (isMongoConfigured() && !mongoUnavailable) {
+    try {
+      const col = await collection<AnalyzeJob>('scanJobs');
+      await col.updateOne({ id: job.id }, { $set: job }, { upsert: true });
+      return job;
+    } catch (error) {
+      mongoUnavailable = true;
+      logPersistenceFallback('MongoDB', error);
+    }
+  }
+
+  const store = await readStore();
+  store.scanJobs = [job, ...store.scanJobs.filter((item) => item.id !== job.id)].slice(0, 1000);
+  await writeStore(store);
+  return job;
+}
+
+export async function getScanJob(jobId: string) {
+  if (isSupabaseConfigured() && !supabaseUnavailable) {
+    try {
+      const result = await getSupabaseClient().from('cih_scan_jobs').select('payload').eq('id', jobId).maybeSingle();
+      assertSupabase('get scan job', result.error);
+      return result.data ? result.data.payload as AnalyzeJob : null;
+    } catch (error) {
+      supabaseUnavailable = true;
+      logPersistenceFallback('Supabase', error);
+    }
+  }
+
+  if (isMongoConfigured() && !mongoUnavailable) {
+    try {
+      const col = await collection<AnalyzeJob>('scanJobs');
+      return col.findOne({ id: jobId }, { projection: { _id: 0 } });
+    } catch (error) {
+      mongoUnavailable = true;
+      logPersistenceFallback('MongoDB', error);
+    }
+  }
+
+  const store = await readStore();
+  return store.scanJobs.find((job) => job.id === jobId) || null;
+}
+
+export async function markStaleScanJobsFailed() {
+  const store = await readStore();
+  const stale = store.scanJobs.filter((job) => job.status === 'queued' || job.status === 'running');
+  if (!stale.length) return;
+  for (const job of stale) {
+    await saveScanJob({
+      ...job,
+      status: 'failed',
+      endedAt: new Date().toISOString(),
+      errors: [...job.errors, 'Scan job was interrupted before completion and has been safely closed.']
+    });
+  }
 }
 
 export async function getReport(reportId: string) {

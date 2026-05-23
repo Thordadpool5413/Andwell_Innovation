@@ -23,6 +23,15 @@ export async function GET() {
       readiness,
       aiGovernance,
       externalDataSummary: latest?.externalDataSummary || null,
+      recentScanJobs: store.scanJobs.slice(0, 10).map((job) => ({
+        id: job.id,
+        status: job.status,
+        createdAt: job.createdAt,
+        endedAt: job.endedAt || null,
+        progress: job.progress,
+        warningCount: job.warnings.length,
+        errorCount: job.errors.length
+      })),
       sourceHealth: latest?.sourceHealth?.map((source) => ({
         url: source.url || source.input,
         status: source.status,

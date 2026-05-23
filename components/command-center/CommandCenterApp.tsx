@@ -1421,7 +1421,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
       </div>
       <Card title="Endpoint checklist">
         <div className="cc-check-grid">
-          {['/api/health', '/api/version', '/api/runtime', '/api/diagnostics', '/api/analyze', '/api/competitors', '/api/reports', '/api/catalog', '/api/ask', '/api/enrich/providers', '/api/enrich/geography', '/api/intelligence/rebuild', '/api/intelligence/sources'].map((route) => (
+          {['/api/health', '/api/version', '/api/runtime', '/api/diagnostics', '/api/analyze', '/api/analyze/status', '/api/competitors', '/api/reports', '/api/catalog', '/api/ask', '/api/enrich/providers', '/api/enrich/geography', '/api/intelligence/rebuild', '/api/intelligence/sources'].map((route) => (
             <div key={route} className="cc-endpoint">
               <code>{route}</code>
               <Badge tone="blue">JSON</Badge>

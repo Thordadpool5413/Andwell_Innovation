@@ -77,7 +77,7 @@ export async function fetchRuntime() {
 }
 
 export async function runAnalysis(competitors: CompetitorInput[], maxPagesPerSite = 8) {
-  return apiFetch<IntelligenceReport>('/api/analyze', {
+  const start = await apiFetch<{ jobId: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out' }>('/api/analyze', {
     method: 'POST',
     body: {
       competitors,
@@ -86,6 +86,26 @@ export async function runAnalysis(competitors: CompetitorInput[], maxPagesPerSit
       useAI: true
     }
   });
+  const startedAt = Date.now();
+  const timeoutMs = 240000;
+  while (Date.now() - startedAt < timeoutMs) {
+    const status = await apiFetch<{
+      status: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out';
+      progress: { done: number; total: number };
+      warnings: string[];
+      errors: string[];
+      report?: IntelligenceReport | null;
+    }>(`/api/analyze/status?jobId=${encodeURIComponent(start.jobId)}`);
+    if (status.status === 'completed' || status.status === 'timed_out') {
+      if (status.report) return status.report;
+      throw new ApiError('The scan completed but report payload is missing.');
+    }
+    if (status.status === 'failed') {
+      throw new ApiError(status.errors[0] || 'Intelligence scan failed.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
+  throw new ApiError('The intelligence scan timed out while waiting for completion.');
 }
 
 export async function deleteCompetitor(url: string) {

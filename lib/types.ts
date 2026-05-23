@@ -339,3 +339,29 @@ export type IntelligenceReport = {
   geographicSignals?: GeographicSignal[];
   externalDataSummary?: ExternalDataSummary;
 };
+
+export type AnalyzeJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'timed_out';
+
+export type AnalyzeJob = {
+  id: string;
+  status: AnalyzeJobStatus;
+  createdAt: string;
+  startedAt?: string;
+  endedAt?: string;
+  inputSummary: {
+    competitors: number;
+    maxPagesPerSite: number;
+    useAI: boolean;
+  };
+  progress: {
+    done: number;
+    total: number;
+  };
+  warnings: string[];
+  errors: string[];
+  reportId?: string;
+  timing: {
+    elapsedMs: number;
+    perCompetitorMs: Record<string, number>;
+  };
+};

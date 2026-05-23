@@ -8,6 +8,7 @@ The app keeps the visible command center wired to real Next.js API routes. Supab
 
 - Executive home page with the Andwell Innovation and Growth purpose, AI build status, source intake, and next recommended action
 - Public competitor source intake wired to `/api/analyze`
+- Asynchronous scan job flow (`/api/analyze` start + `/api/analyze/status` polling) to avoid gateway timeouts
 - AI source review, claim scrubbing, service-line mapping, and safe-language generation
 - Intelligence library powered by stored reports and AI-built outputs
 - AI Intelligence Coach powered by `/api/ask` and stored evidence
@@ -92,6 +93,7 @@ After deployment, check:
 /api/runtime
 /api/diagnostics
 /api/analyze
+/api/analyze/status
 /api/enrich/providers
 /api/enrich/geography
 /api/intelligence/rebuild
