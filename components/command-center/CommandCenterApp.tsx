@@ -932,6 +932,20 @@ function GrowthMapScreen({ growthMap }: { growthMap: GrowthMap }) {
             ))}
           </div>
         </Card>
+        <Card title="Partnership opportunity areas">
+          <div className="cc-compact-list">
+            {(growthMap.summary.partnershipAreas.length ? growthMap.summary.partnershipAreas : ['Partnership intelligence ready']).map((area) => (
+              <div className="cc-blocker compact resolved" key={`partner-${area}`}><CheckCircle2 size={16} /><span>{area}</span></div>
+            ))}
+          </div>
+        </Card>
+        <Card title="Evidence-limited areas">
+          <div className="cc-compact-list">
+            {(growthMap.summary.evidenceLimitedAreas.length ? growthMap.summary.evidenceLimitedAreas : ['Evidence coverage is active']).map((area) => (
+              <div className="cc-blocker compact" key={`limited-${area}`}><AlertTriangle size={16} /><span>{area}</span></div>
+            ))}
+          </div>
+        </Card>
       </div>
       {selectedArea ? (
         <Card title={selectedArea.area} eyebrow="Area intelligence detail">
@@ -1217,6 +1231,20 @@ function ReportScreen({ report, approvedItems, growthMap, matrix }: { report: In
           ))}
         </div>
         <div className="cc-report-section">
+          <h3>Market signal</h3>
+          <article>
+            <strong>Competitive posture</strong>
+            <p>{report.expertBrief?.marketPosture || 'Market posture is generated from the latest source-backed overlap and differentiation signals.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Andwell opportunity</h3>
+          <article>
+            <strong>Top positioning opportunities</strong>
+            <p>{report.competitorScores.map((score) => `${score.competitorName}: ${score.strongestAndwellAdvantages.slice(0, 2).join(', ') || 'capability-led opportunity'}`).slice(0, 3).join(' | ')}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
           <h3>Advantage Matrix summary</h3>
           <article>
             <strong>{matrix.summary.capabilitiesMapped} capabilities mapped with Andwell as baseline</strong>
@@ -1236,6 +1264,48 @@ function ReportScreen({ report, approvedItems, growthMap, matrix }: { report: In
           <article>
             <strong>Field focus zones</strong>
             <p>{growthMap.summary.fieldFocusZones.join(', ') || 'Growth map is ready to build once source intake expands.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Evidence reviewed</h3>
+          <article>
+            <strong>{report.pagesReviewed} public pages reviewed</strong>
+            <p>{report.externalDataSummary?.providerMatches || 0} healthcare provider matches and {report.externalDataSummary?.geographicSignals || 0} geographic signals were incorporated into this output package.</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Strategic implications</h3>
+          <article>
+            <strong>Field and leadership implications</strong>
+            <p>{report.executiveInsights.slice(0, 2).map((insight) => insight.summary).join(' ') || 'Strategic implications will expand as source coverage grows.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Payer value angle</h3>
+          <article>
+            <strong>Payer-facing signal</strong>
+            <p>{growthMap.summary.topGrowthAreas.length ? 'Use high-opportunity areas to align value-based conversations with service-line depth and safe evidence language.' : 'Additional public source material would strengthen payer-facing guidance.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Partnership opportunity</h3>
+          <article>
+            <strong>Partnership focus zones</strong>
+            <p>{growthMap.summary.partnershipAreas.join(', ') || 'Partnership opportunity intelligence is ready to expand as geographic source coverage grows.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Recommended next actions</h3>
+          <article>
+            <strong>Next move set</strong>
+            <p>{report.recommendedActions?.map((action) => action.label).join(' | ') || 'Build additional source coverage and rerun intelligence for deeper geographic and partnership signals.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Risk safe language</h3>
+          <article>
+            <strong>Guardrail policy</strong>
+            <p>Use source-backed, cautious wording. Not found publicly means reviewed sources did not clearly show a defined offering and does not prove absence.</p>
           </article>
         </div>
         <div className="cc-report-section">
