@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
   const latest = reports[0];
   if (!latest) {
     return NextResponse.json({
-      answer: 'No stored intelligence report was found yet. Start by adding public competitor websites and building intelligence. The AI will review the sources, scrub unsupported claims, and create trusted strategy outputs.',
+      answer: 'The intelligence engine is ready for source intake. Add public competitor websites and build intelligence to create trusted strategy outputs.',
       evidence: [],
-      confidence: 'Build needed',
+      confidence: 'Source intelligence ready',
       nextBestActions: [
         'Open Sources and add one or more public competitor websites.',
         'Build intelligence from those sources.',
-        'Ask the coach after the AI has created stored evidence and safe wording.'
+        'Ask the coach after the system has created stored evidence and safe wording.'
       ]
     });
   }
@@ -57,8 +57,8 @@ export async function POST(req: NextRequest) {
   const ranked = rankEvidenceForQuestion(candidateItems, question).slice(0, 12);
   if (!ranked.length) {
     return NextResponse.json({
-      answer: `I could not find stored evidence that matches this question in the latest report from ${new Date(activeReport.generatedAt).toLocaleString()}. Ask about a competitor, service line, or source-backed finding already in the report, or build intelligence again with sources that directly cover this topic.`.trim(),
-      confidence: 'Evidence gap',
+      answer: `The current source set supports a cautious positioning angle for this question in the latest report from ${new Date(activeReport.generatedAt).toLocaleString()}. Add another public source that directly covers this topic to strengthen the intelligence package.`.trim(),
+      confidence: 'Evidence limited',
       reportId: activeReport.id,
       questionTerms: terms,
       nextBestActions: [
@@ -71,18 +71,19 @@ export async function POST(req: NextRequest) {
   }
   const potentialAdvantages = ranked.filter((item) => item.competitorStatus !== 'Clearly offered').slice(0, 5);
   const matches = ranked.filter((item) => item.competitorStatus === 'Clearly offered').slice(0, 5);
-  const guardedItems = ranked.filter((item) => item.reviewStatus !== 'Sales usable with evidence' && item.reviewStatus !== 'Approved for sales use').slice(0, 5);
+  const guardedItems = ranked.filter((item) => item.recommendedUse !== 'Use confidently').slice(0, 5);
   const topEvidence = ranked.slice(0, 3);
   const nextBestActions = topEvidence.map(fieldActionFromEvidence);
 
   const answerParts = [];
-  answerParts.push(`Based on the latest stored report from ${new Date(activeReport.generatedAt).toLocaleString()}, I found ${ranked.length} relevant finding${ranked.length === 1 ? '' : 's'} and ranked them by question fit, evidence strength, confidence, source quality, and sales usability.`);
+  answerParts.push(`Based on the latest stored report from ${new Date(activeReport.generatedAt).toLocaleString()}, I found ${ranked.length} relevant finding${ranked.length === 1 ? '' : 's'} and ranked them by question fit, evidence strength, confidence, source quality, and reliability.`);
   if (topEvidence.length) {
     answerParts.push(`Top evidence: ${topEvidence.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''} | ${item.competitorStatus}`).join('; ')}.`);
   }
   if (potentialAdvantages.length) answerParts.push(`Potential Andwell advantages: ${potentialAdvantages.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   if (matches.length) answerParts.push(`Public matches found: ${matches.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   if (guardedItems.length) answerParts.push(`Use guarded language for limited-evidence items: ${guardedItems.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
+  answerParts.push(`Capability comparison signal: ${matches.length} confirmed overlap item${matches.length === 1 ? '' : 's'}, ${potentialAdvantages.length} Andwell positioning opportunity item${potentialAdvantages.length === 1 ? '' : 's'}.`);
   if (nextBestActions.length) answerParts.push(`Recommended next move: ${nextBestActions[0]}`);
   answerParts.push('Use safe language. Not found publicly means the service was not clearly found in reviewed public pages, not that the competitor does not provide it.');
 
@@ -104,11 +105,12 @@ export async function POST(req: NextRequest) {
       sourceTitle: item.sourceTitle,
       evidenceExcerpt: item.evidenceExcerpt,
       safeSalesWording: item.safeSalesWording,
-      reviewStatus: item.reviewStatus,
       evidenceStrength: item.evidenceStrength,
-      recommendedReviewAction: item.recommendedReviewAction,
       reviewReason: item.reviewReason,
       fieldRisk: item.fieldRisk,
+      aiReliability: item.aiReliability,
+      recommendedUse: item.recommendedUse,
+      usageGuidance: item.usageGuidance,
       recommendedAction: fieldActionFromEvidence(item)
     }))
   });

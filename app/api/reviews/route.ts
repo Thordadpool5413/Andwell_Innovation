@@ -4,6 +4,8 @@ import type { ReviewStatus } from '../../../lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Compatibility endpoint retained for historical payload support.
+// The active Andwell workflow is AI-owned and does not depend on this route.
 
 export async function GET() {
   const store = await readStore();

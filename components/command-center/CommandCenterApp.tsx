@@ -13,6 +13,7 @@ import {
   FileText,
   Gauge,
   Library,
+  Map,
   Menu,
   PanelLeftClose,
   RefreshCcw,
@@ -23,9 +24,9 @@ import {
   Sparkles,
   UploadCloud
 } from 'lucide-react';
-import type { CompetitorInput, Finding, IntelligenceReport, ReviewStatus, SubserviceFinding } from '../../lib/types';
+import type { CompetitorInput, IntelligenceReport } from '../../lib/types';
+import { buildAdvantageMatrix, buildGrowthMap, type AdvantageMatrix, type GrowthMap } from '../../lib/intelligence-views';
 import { validatePublicHttpUrl } from '../../lib/url-safety';
-import type { StoredReview } from '../../lib/store';
 import {
   askHub,
   deleteCompetitor,
@@ -34,7 +35,6 @@ import {
   fetchCompetitors,
   fetchReport,
   fetchReports,
-  fetchReviews,
   fetchRuntime,
   runAnalysis
 } from './api';
@@ -54,13 +54,15 @@ const initialState: CommandCenterState = {
 };
 
 const tabs: Array<{ id: TabId; label: string; help: string; icon: typeof Gauge }> = [
-  { id: 'dashboard', label: 'Home', help: 'What, why, how', icon: Gauge },
-  { id: 'sources', label: 'Build Intelligence', help: 'Enter sources', icon: UploadCloud },
-  { id: 'library', label: 'Intelligence Library', help: 'AI-built outputs', icon: Library },
+  { id: 'dashboard', label: 'Home', help: 'Command Center', icon: Gauge },
+  { id: 'sources', label: 'Build Intelligence', help: 'Enter Sources', icon: UploadCloud },
+  { id: 'matrix', label: 'Advantage Matrix', help: 'Capability Comparison', icon: BarChart3 },
+  { id: 'map', label: 'Growth Map', help: 'Market Opportunity', icon: Map },
+  { id: 'library', label: 'Intelligence Library', help: 'Built Outputs', icon: Library },
   { id: 'strategy', label: 'Strategy', help: 'Growth plays', icon: BarChart3 },
   { id: 'coach', label: 'AI Coach', help: 'Ask the system', icon: Bot },
   { id: 'report', label: 'Executive Report', help: 'Leadership output', icon: FileText },
-  { id: 'system', label: 'System Health', help: 'Hostinger checks', icon: Activity }
+  { id: 'system', label: 'System Health', help: 'Diagnostics', icon: Activity }
 ];
 
 function parseSourceInput(value: string): CompetitorInput[] {
@@ -116,31 +118,15 @@ function sourcePreview(value: string) {
     });
 }
 
-function reviewKey(item: Finding | SubserviceFinding) {
-  return item.id;
-}
-
-function savedReviewFor(item: Finding | SubserviceFinding, reviews: StoredReview[]) {
-  return reviews.find((review) => review.findingId === reviewKey(item));
-}
-
-function effectiveStatus(item: Finding | SubserviceFinding, reviews: StoredReview[]): ReviewStatus | 'Needs edits' {
-  return savedReviewFor(item, reviews)?.status || item.reviewStatus;
-}
-
-function toReviewable(report: IntelligenceReport | null, reviews: StoredReview[]): ReviewableFinding[] {
+function toReviewable(report: IntelligenceReport | null): ReviewableFinding[] {
   if (!report) return [];
   const serviceItems: ReviewableFinding[] = report.allFindings.map((item) => ({
     ...item,
-    kind: 'service',
-    savedReview: savedReviewFor(item, reviews),
-    effectiveReviewStatus: effectiveStatus(item, reviews)
+    kind: 'service'
   }));
   const subserviceItems: ReviewableFinding[] = report.allSubserviceFindings.map((item) => ({
     ...item,
-    kind: 'subservice',
-    savedReview: savedReviewFor(item, reviews),
-    effectiveReviewStatus: effectiveStatus(item, reviews)
+    kind: 'subservice'
   }));
   return [...serviceItems, ...subserviceItems];
 }
@@ -164,25 +150,7 @@ function compactUrl(url?: string) {
 }
 
 function scrubOutputText(value?: string) {
-  return (value || '')
-    .replace(/Review before sales use/g, 'Guarded language required')
-    .replace(/Review Center/g, 'AI safe-language engine')
-    .replace(/review queue/gi, 'AI build')
-    .replace(/review items/gi, 'guarded items')
-    .replace(/review item/gi, 'guarded item')
-    .replace(/human review/gi, 'AI guardrails')
-    .replace(/manager review/gi, 'AI guardrails')
-    .replace(/approved intelligence/gi, 'AI-built intelligence')
-    .replace(/approved evidence/gi, 'source evidence')
-    .replace(/approved source/gi, 'reliable source')
-    .replace(/approved findings/gi, 'scrubbed findings')
-    .replace(/approved finding/gi, 'scrubbed finding')
-    .replace(/approved language/gi, 'scrubbed language')
-    .replace(/approve findings/gi, 'let the AI scrub findings')
-    .replace(/approve relevant findings/gi, 'build source-backed findings')
-    .replace(/approve strong evidence/gi, 'build from strong evidence')
-    .replace(/Review this competitor first/g, 'Start here for leadership focus')
-    .replace(/Needs review/g, 'Evidence limited');
+  return value || '';
 }
 
 function displayStatus(value: string) {
@@ -200,9 +168,8 @@ function currentNextAction({
   hasReport: boolean;
   aiConfigured: boolean;
 }) {
-  if (!hasReport) return 'Enter sources and let the AI review, scrub, connect, and build the intelligence outputs.';
-  if (!aiConfigured) return 'AI enrichment is off, so the app is using its evidence rules and public-source intelligence engine.';
-  return 'The AI has built the strategy, coaching, intelligence library, and executive report from the latest sources.';
+  if (!hasReport) return 'Ready for source intelligence. Enter public sources and build the first intelligence package.';
+  return 'Intelligence engine active. Source evidence is connected into matrix, growth map, strategy, coaching, and executive outputs.';
 }
 
 export default function CommandCenterApp() {
@@ -220,10 +187,9 @@ export default function CommandCenterApp() {
   const loadWorkspace = useCallback(async () => {
     setState((current) => ({ ...current, status: 'loading', error: '' }));
     try {
-      const [reportsPayload, competitorsPayload, reviewsPayload, catalogPayload, analyzePayload, runtimePayload] = await Promise.all([
+      const [reportsPayload, competitorsPayload, catalogPayload, analyzePayload, runtimePayload] = await Promise.all([
         fetchReports(),
         fetchCompetitors(),
-        fetchReviews(),
         fetchCatalog(),
         fetchAnalyzeHealth(),
         fetchRuntime().catch(() => null)
@@ -238,7 +204,7 @@ export default function CommandCenterApp() {
         competitors: competitorsPayload.competitors,
         reports: reportsPayload.reports,
         currentReport: reportPayload.report,
-        reviews: reviewsPayload.reviews,
+        reviews: [],
         catalog: catalogPayload.catalog,
         analyzeHealth: analyzePayload,
         runtime: runtimePayload
@@ -261,8 +227,8 @@ export default function CommandCenterApp() {
     setMobileOpen(false);
   }, [activeTab]);
 
-  const reviewableItems = useMemo(() => toReviewable(state.currentReport, state.reviews), [state.currentReport, state.reviews]);
-  const approvedItems = useMemo(() => reviewableItems.filter((item) => item.effectiveReviewStatus !== 'Rejected' && item.recommendedReviewAction !== 'Reject'), [reviewableItems]);
+  const reviewableItems = useMemo(() => toReviewable(state.currentReport), [state.currentReport]);
+  const approvedItems = useMemo(() => reviewableItems.filter((item) => item.recommendedUse !== 'Avoid claim'), [reviewableItems]);
   const filteredApproved = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return approvedItems.slice(0, 80);
@@ -276,6 +242,8 @@ export default function CommandCenterApp() {
     hasReport: Boolean(state.currentReport),
     aiConfigured: Boolean(state.analyzeHealth?.aiConfigured)
   });
+  const matrix = useMemo<AdvantageMatrix>(() => buildAdvantageMatrix(state.currentReport), [state.currentReport]);
+  const growthMap = useMemo<GrowthMap>(() => buildGrowthMap(state.currentReport, matrix), [state.currentReport, matrix]);
 
   async function handleScan() {
     const competitors = parseSourceInput(sourceText);
@@ -288,10 +256,9 @@ export default function CommandCenterApp() {
     setScanMessage('AI is reviewing public evidence, scrubbing unsafe claims, connecting service lines, and building strategy outputs.');
     try {
       const report = await runAnalysis(competitors);
-      const [reportsPayload, competitorsPayload, reviewsPayload] = await Promise.all([
+      const [reportsPayload, competitorsPayload] = await Promise.all([
         fetchReports(),
-        fetchCompetitors(),
-        fetchReviews()
+        fetchCompetitors()
       ]);
       setState((current) => ({
         ...current,
@@ -299,8 +266,7 @@ export default function CommandCenterApp() {
         error: '',
         competitors: competitorsPayload.competitors,
         reports: reportsPayload.reports,
-        currentReport: report,
-        reviews: reviewsPayload.reviews
+        currentReport: report
       }));
       const sourceIssues = report.sourceHealth?.filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length || 0;
       setScanMessage(`AI build complete. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} analyzed, ${report.pagesReviewed} public page${report.pagesReviewed === 1 ? '' : 's'} reviewed, and ${sourceIssues} source issue${sourceIssues === 1 ? '' : 's'} handled.`);
@@ -327,7 +293,7 @@ export default function CommandCenterApp() {
     } catch (error) {
       setAskResponse({
         answer: error instanceof Error ? error.message : 'The AI coach could not answer this question.',
-        confidence: 'AI unavailable',
+        confidence: 'Evidence limited',
         nextBestActions: [],
         evidence: []
       });
@@ -363,9 +329,7 @@ export default function CommandCenterApp() {
             <span>{active.help}</span>
           </div>
           <div className="cc-topbar-actions">
-            <Badge tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'}>
-              {state.analyzeHealth?.aiConfigured ? 'AI enriched' : 'AI optional'}
-            </Badge>
+            <Badge tone="green">Intelligence engine active</Badge>
             <Button variant="ghost" onClick={() => void loadWorkspace()}>
               <RefreshCcw size={16} /> Refresh
             </Button>
@@ -388,6 +352,8 @@ export default function CommandCenterApp() {
             scanMessage={scanMessage}
             onScan={() => void handleScan()}
             onTab={changeTab}
+            matrix={matrix}
+            growthMap={growthMap}
           />
         ) : null}
         {activeTab === 'sources' ? (
@@ -400,6 +366,8 @@ export default function CommandCenterApp() {
             onScan={() => void handleScan()}
           />
         ) : null}
+        {activeTab === 'matrix' ? <MatrixScreen matrix={matrix} /> : null}
+        {activeTab === 'map' ? <GrowthMapScreen growthMap={growthMap} /> : null}
         {activeTab === 'library' ? (
           <LibraryScreen
             approvedItems={filteredApproved}
@@ -411,7 +379,7 @@ export default function CommandCenterApp() {
             onBuild={() => changeTab('sources')}
           />
         ) : null}
-        {activeTab === 'strategy' ? <StrategyScreen report={state.currentReport} onBuild={() => changeTab('sources')} /> : null}
+        {activeTab === 'strategy' ? <StrategyScreen report={state.currentReport} onBuild={() => changeTab('sources')} matrix={matrix} growthMap={growthMap} /> : null}
         {activeTab === 'coach' ? (
           <CoachScreen
             report={state.currentReport}
@@ -420,9 +388,11 @@ export default function CommandCenterApp() {
             askBusy={askBusy}
             askResponse={askResponse}
             onAsk={() => void handleAsk()}
+            growthMap={growthMap}
+            matrix={matrix}
           />
         ) : null}
-        {activeTab === 'report' ? <ReportScreen report={state.currentReport} approvedItems={approvedItems} /> : null}
+        {activeTab === 'report' ? <ReportScreen report={state.currentReport} approvedItems={approvedItems} growthMap={growthMap} matrix={matrix} /> : null}
         {activeTab === 'system' ? <SystemScreen state={state} /> : null}
       </main>
     </div>
@@ -458,10 +428,10 @@ function Sidebar({
         </div>
         <div className="cc-progress-card">
           <div>
-            <span>AI build mode</span>
+            <span>Output engine</span>
             <strong>{reportCount ? 'Active' : 'Ready'}</strong>
           </div>
-          <p>{reportCount ? `${approvedCount} scrubbed intelligence item${approvedCount === 1 ? '' : 's'} available.` : 'Enter sources and the AI will review, scrub, connect, and build the outputs.'}</p>
+          <p>{reportCount ? `${approvedCount} trusted output item${approvedCount === 1 ? '' : 's'} available.` : 'Intelligence engine ready. Enter public sources to build the first output package.'}</p>
         </div>
         <nav className="cc-nav" aria-label="Command center navigation">
           {tabs.map((tab) => {
@@ -492,7 +462,9 @@ function Dashboard({
   scanBusy,
   scanMessage,
   onScan,
-  onTab
+  onTab,
+  matrix,
+  growthMap
 }: {
   state: CommandCenterState;
   approvedItems: ReviewableFinding[];
@@ -503,6 +475,8 @@ function Dashboard({
   scanMessage: string;
   onScan: () => void;
   onTab: (tab: TabId) => void;
+  matrix: AdvantageMatrix;
+  growthMap: GrowthMap;
 }) {
   const report = state.currentReport;
   const approvedPreview = approvedItems.slice(0, 3);
@@ -532,15 +506,13 @@ function Dashboard({
           <h2 className="cc-hero-quote">Innovation and Growth is where Andwell Health Partners turns vision into infrastructure. We are building the future of high acuity community care, creating post acute partnerships that make us essential to Maine, connecting complex services through technology, and developing the value based contracting model that allows us to take risk, deliver better outcomes, save payers money, and grow because we are built for the complexity others cannot manage</h2>
           <p>This app gives that work an AI intelligence engine: source in, evidence scrubbed, strategy built, leadership output ready to use.</p>
           <div className="cc-action-row">
-            <Button variant="primary" onClick={() => onTab('sources')}><UploadCloud size={16} /> Build Intelligence</Button>
+            <Button variant="primary" onClick={() => onTab('sources')}><UploadCloud size={16} /> Build Andwell Intelligence</Button>
             <Button onClick={() => onTab('strategy')}><BarChart3 size={16} /> View Strategy</Button>
             <Button onClick={() => onTab('report')}><FileText size={16} /> Executive Report</Button>
           </div>
         </div>
         <div className="cc-status-panel">
-          <Badge tone={state.runtime?.persistence.supabaseConfigured ? 'green' : 'amber'}>
-            {state.runtime?.persistence.supabaseConfigured ? 'Supabase live' : 'Local fallback'}
-          </Badge>
+          <Badge tone="green">Trusted output engine</Badge>
           <strong>{report ? 'AI build complete' : 'AI builder ready'}</strong>
           <span>
             {report ? (
@@ -549,7 +521,7 @@ function Dashboard({
                 <br />
                 {pagesReviewed} pages reviewed across {sourceCount || report.competitorsAnalyzed} source{sourceCount === 1 ? '' : 's'}
               </>
-            ) : 'Enter public competitor sources and the AI will review, scrub, connect, and build the outputs.'}
+            ) : 'Ready for source intelligence. Enter public competitor sources to generate the first intelligence package.'}
           </span>
           <div className="cc-status-list">
             <span>Evidence scrubbed</span>
@@ -569,10 +541,10 @@ function Dashboard({
       </section>
 
       <div className="cc-metric-grid">
-        <Metric label="AI builds" value={state.reports.length} detail="Stored intelligence runs" tone="blue" />
-        <Metric label="Sources" value={sourceCount || 0} detail={report ? 'Public sources processed' : 'Stored competitors'} tone="teal" />
-        <Metric label="Scrubbed outputs" value={approvedItems.length} detail="AI-governed findings" tone={approvedItems.length ? 'green' : 'slate'} />
-        <Metric label="AI status" value={state.analyzeHealth?.aiConfigured ? 'On' : 'Off'} detail={state.analyzeHealth?.aiConfigured ? 'OpenAI extraction enabled' : 'Rule-based scan available'} tone={state.analyzeHealth?.aiConfigured ? 'teal' : 'amber'} />
+        <Metric label="Intelligence packages" value={state.reports.length || 'Ready'} detail={state.reports.length ? 'Built and stored' : 'Ready to build'} tone="blue" />
+        <Metric label="Sources" value={sourceCount || 'Ready'} detail={report ? 'Public sources processed' : 'Source intake ready'} tone="teal" />
+        <Metric label="Trusted outputs" value={approvedItems.length || 'Ready'} detail={approvedItems.length ? 'Source-based guidance' : 'Output engine ready'} tone={approvedItems.length ? 'green' : 'slate'} />
+        <Metric label="Processing" value="Active" detail="Evidence guardrails active" tone="teal" />
       </div>
 
       <div className="cc-dashboard-grid cc-dashboard-primary">
@@ -581,7 +553,7 @@ function Dashboard({
             <Brain size={22} />
             <div>
               <strong>{nextAction}</strong>
-              <p>{report ? 'Use the strategy, coach, library, and executive report built from the latest public evidence.' : 'Paste public competitor websites and let the AI handle the evidence review, claim scrubbing, service-line mapping, and output build.'}</p>
+              <p>{report ? 'Use the strategy, coach, library, matrix, map, and executive report built from the latest public evidence.' : 'Paste public competitor websites and let the system process evidence, scrub unsupported claims, map capabilities, and build outputs.'}</p>
             </div>
           </div>
           <textarea className="cc-textarea compact" value={sourceText} onChange={(event) => setSourceText(event.target.value)} placeholder="Paste competitor URLs, one per line." />
@@ -604,7 +576,26 @@ function Dashboard({
               </div>
             ))}
           </div>
-          <Notice title={state.analyzeHealth?.aiConfigured ? 'AI enrichment is active' : 'Evidence rules are active'} body={state.analyzeHealth?.aiConfigured ? 'The AI enriches the crawler output with summaries, field language, risk guardrails, and battlecard context.' : 'OpenAI enrichment is optional. The app still builds from crawler evidence and Andwell service-line rules.'} tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'} />
+          <Notice title="Evidence guardrails active" body="Source processing, claim scrubbing, capability mapping, and output generation are active for every build." tone="green" />
+        </Card>
+      </div>
+
+      <div className="cc-dashboard-grid">
+        <Card title="Advantage Matrix preview" action={<Button variant="ghost" onClick={() => onTab('matrix')}>Open Matrix</Button>}>
+          <p>Ready to compare Andwell capabilities with competitor signals.</p>
+          <div className="cc-list">
+            <div className="cc-list-item"><strong>Capabilities mapped</strong><small>{matrix.summary.capabilitiesMapped}</small></div>
+            <div className="cc-list-item"><strong>Competitors compared</strong><small>{matrix.summary.competitorsCompared || 'Capability matrix ready to build'}</small></div>
+            <div className="cc-list-item"><strong>Andwell advantages identified</strong><small>{matrix.summary.advantageSignals || 'Ready to build'}</small></div>
+          </div>
+        </Card>
+        <Card title="Growth Map preview" action={<Button variant="ghost" onClick={() => onTab('map')}>Open Growth Map</Button>}>
+          <p>Market opportunity engine ready with ranked field focus areas.</p>
+          <div className="cc-list">
+            <div className="cc-list-item"><strong>Top growth areas</strong><small>{growthMap.summary.topGrowthAreas.length || 'Ready to map growth opportunities'}</small></div>
+            <div className="cc-list-item"><strong>Saturated areas</strong><small>{growthMap.summary.saturatedAreas.length || 'Market opportunity engine ready'}</small></div>
+            <div className="cc-list-item"><strong>Field focus zones</strong><small>{growthMap.summary.fieldFocusZones.length || 'Capability geography ready to build'}</small></div>
+          </div>
         </Card>
       </div>
 
@@ -624,7 +615,7 @@ function Dashboard({
               ))}
             </div>
           ) : (
-            <EmptyState title="No intelligence built yet" body="Run the AI builder and the app will produce scrubbed intelligence, strategy, coaching, and executive report content." action={<Button onClick={() => onTab('sources')}>Build Intelligence</Button>} />
+            <EmptyState title="Output engine ready" body="Build Andwell Intelligence to generate capability comparison, growth map signals, strategy, coaching, and executive outputs." action={<Button onClick={() => onTab('sources')}>Build Andwell Intelligence</Button>} />
           )}
         </Card>
 
@@ -695,9 +686,9 @@ function SourcesScreen({
             ))}
           </div>
           <Notice
-            title={state.analyzeHealth?.aiConfigured ? 'AI enrichment is enabled' : 'AI enrichment is optional'}
-            body={state.analyzeHealth?.aiConfigured ? 'OpenAI extraction adds deeper summaries, safe language, risk guardrails, and battlecard guidance.' : 'The app still runs rule-based public evidence analysis. Add OPENAI_API_KEY to enable deeper AI extraction.'}
-            tone={state.analyzeHealth?.aiConfigured ? 'green' : 'amber'}
+            title="Output intelligence active"
+            body="This build engine produces capability comparison, growth opportunity signals, strategy plays, field guidance, and executive outputs from public source evidence."
+            tone="green"
           />
         </Card>
       </div>
@@ -713,7 +704,7 @@ function SourcesScreen({
             ))}
           </div>
         ) : (
-          <EmptyState title="No sources queued" body="Paste up to 25 public competitor websites. Private IPs, localhost, and internal hostnames are blocked." />
+          <EmptyState title="Ready for source intelligence" body="Paste up to 25 public competitor websites. The system protects processing by blocking private, local, and internal network addresses." />
         )}
       </Card>
       {state.currentReport?.sourceHealth?.length ? (
@@ -790,7 +781,7 @@ function LibraryScreen({
             </table>
           </div>
         ) : (
-          <EmptyState title="No AI-built intelligence yet" body="Enter public sources and let the AI review, scrub, connect, and build the trusted intelligence library." action={<Button onClick={onBuild}>Build Intelligence</Button>} />
+          <EmptyState title="Built outputs ready to generate" body="Enter public sources and build intelligence to create trusted outputs, source-based guidance, and strategy signals." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />
         )}
       </Card>
 
@@ -807,16 +798,162 @@ function LibraryScreen({
             ))}
           </div>
         ) : (
-          <EmptyState title="No stored competitors" body="Competitors appear here after a scan or source save." />
+          <EmptyState title="Source library ready" body="Competitor sources appear here after source intake and intelligence builds." />
         )}
       </Card>
     </div>
   );
 }
 
-function StrategyScreen({ report, onBuild }: { report: IntelligenceReport | null; onBuild: () => void }) {
+function MatrixScreen({ matrix }: { matrix: AdvantageMatrix }) {
+  const [selected, setSelected] = useState<{ capability: string; competitorName: string } | null>(null);
+  const [viewMode, setViewMode] = useState<'executive' | 'evidence' | 'field'>('executive');
+  const selectedCell = selected
+    ? matrix.rows.find((row) => row.capability === selected.capability)?.cells.find((cell) => cell.competitorName === selected.competitorName)
+    : null;
+
+  return (
+    <div className="cc-stack">
+      <div className="cc-metric-grid">
+        <Metric label="Capabilities mapped" value={matrix.summary.capabilitiesMapped || 'Ready'} detail="Andwell baseline definitions" tone="blue" />
+        <Metric label="Competitors compared" value={matrix.summary.competitorsCompared || 'Ready'} detail="Source-derived comparison" tone="teal" />
+        <Metric label="Andwell advantages" value={matrix.summary.advantageSignals || 'Ready'} detail="Source-backed signals" tone="green" />
+        <Metric label="Evidence-limited cells" value={matrix.summary.evidenceLimited || 'Ready'} detail="Add sources to strengthen" tone="amber" />
+      </div>
+      <Card title="Andwell Advantage Matrix" eyebrow="Capability Comparison">
+        <div className="cc-filter-row">
+          <button type="button" className={viewMode === 'executive' ? 'active' : ''} onClick={() => setViewMode('executive')}>Executive View</button>
+          <button type="button" className={viewMode === 'evidence' ? 'active' : ''} onClick={() => setViewMode('evidence')}>Evidence View</button>
+          <button type="button" className={viewMode === 'field' ? 'active' : ''} onClick={() => setViewMode('field')}>Field Coaching View</button>
+        </div>
+        {matrix.rows.length ? (
+          <div className="cc-table-wrap">
+            <table className="cc-table">
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  {matrix.competitors.map((name) => <th key={name}>{name}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {matrix.rows.map((row) => (
+                  <tr key={row.capability}>
+                    <td><strong>{row.capability}</strong></td>
+                    {row.cells.map((cell) => (
+                      <td key={`${row.capability}-${cell.competitorName}`}>
+                        <button type="button" className="cc-matrix-cell-btn" onClick={() => setSelected({ capability: row.capability, competitorName: cell.competitorName })}>
+                          <Badge tone={cell.status === 'Confirmed match' ? 'green' : cell.status === 'Related capability' ? 'blue' : cell.status === 'Andwell advantage' ? 'teal' : 'amber'}>{cell.status}</Badge>
+                        </button>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState title="Capability matrix ready to build" body="Enter public sources and build intelligence to generate a full Andwell baseline comparison." />
+        )}
+      </Card>
+      {selectedCell ? (
+        <Card title={`${selectedCell.capability} vs ${selectedCell.competitorName}`} eyebrow="Cell intelligence detail">
+          <div className="cc-list">
+            <div className="cc-list-item"><strong>Status</strong><p>{selectedCell.status}</p></div>
+            <div className="cc-list-item"><strong>Confidence</strong><p>{selectedCell.confidence}</p></div>
+            <div className="cc-list-item"><strong>Evidence count</strong><p>{selectedCell.evidenceCount}</p></div>
+            {viewMode !== 'field' ? <div className="cc-list-item"><strong>Source summary</strong><p>{selectedCell.sourceSummary}</p></div> : null}
+            {viewMode !== 'executive' ? <div className="cc-list-item"><strong>Safe talk track</strong><p>{selectedCell.safeTalkTrack}</p></div> : null}
+            {viewMode !== 'executive' ? <div className="cc-list-item"><strong>What not to say</strong><p>{selectedCell.avoidLanguage}</p></div> : null}
+            <div className="cc-list-item"><strong>Recommended next move</strong><p>{selectedCell.nextMove}</p></div>
+            <div className="cc-list-item"><strong>Referral source question</strong><p>{selectedCell.fieldQuestion}</p></div>
+          </div>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+function GrowthMapScreen({ growthMap }: { growthMap: GrowthMap }) {
+  const [selected, setSelected] = useState<string | null>(growthMap.areas[0]?.area || null);
+  const [layers, setLayers] = useState({
+    growth: true,
+    saturation: true,
+    advantage: true,
+    partnership: true,
+    payer: true,
+    field: true,
+    confidence: true
+  });
+  const selectedArea = growthMap.areas.find((area) => area.area === selected) || null;
+  return (
+    <div className="cc-stack">
+      <div className="cc-metric-grid">
+        <Metric label="Growth areas identified" value={growthMap.summary.topGrowthAreas.length || 'Ready'} detail="Ranked opportunities" tone="green" />
+        <Metric label="Saturated areas" value={growthMap.summary.saturatedAreas.length || 'Ready'} detail="Competitive density" tone="amber" />
+        <Metric label="Field focus zones" value={growthMap.summary.fieldFocusZones.length || 'Ready'} detail="Where to act next" tone="blue" />
+        <Metric label="Evidence-limited areas" value={growthMap.summary.evidenceLimitedAreas.length || 'Ready'} detail="Add targeted sources" tone="slate" />
+      </div>
+      <Card title="Growth Opportunity Map" eyebrow="Market Opportunity">
+        <div className="cc-filter-row">
+          {Object.entries(layers).map(([key, enabled]) => (
+            <button key={key} type="button" className={enabled ? 'active' : ''} onClick={() => setLayers((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}>
+              {key === 'growth' ? 'Growth' : key === 'saturation' ? 'Saturation' : key === 'advantage' ? 'Advantage' : key === 'partnership' ? 'Partnership' : key === 'payer' ? 'Payer Value' : key === 'field' ? 'Field Focus' : 'Confidence'}
+            </button>
+          ))}
+        </div>
+        <div className="cc-source-grid">
+          {growthMap.areas.map((area) => (
+            <button key={area.area} type="button" className={`cc-area-card ${selected === area.area ? 'active' : ''}`} onClick={() => setSelected(area.area)}>
+              <strong>{area.area}</strong>
+              <span>{area.signal}</span>
+              <small>
+                {layers.growth ? `Growth ${area.growthOpportunityScore}` : null}
+                {layers.saturation ? ` | Saturation ${area.saturationScore}` : null}
+                {layers.advantage ? ` | Advantage ${area.andwellAdvantageScore}` : null}
+                {layers.confidence ? ` | Confidence ${area.evidenceConfidence}` : null}
+              </small>
+            </button>
+          ))}
+        </div>
+      </Card>
+      <div className="cc-dashboard-grid">
+        <Card title="Top growth areas">
+          <div className="cc-compact-list">
+            {(growthMap.summary.topGrowthAreas.length ? growthMap.summary.topGrowthAreas : ['Growth opportunity engine ready']).map((area) => (
+              <div className="cc-blocker compact resolved" key={`growth-${area}`}><CheckCircle2 size={16} /><span>{area}</span></div>
+            ))}
+          </div>
+        </Card>
+        <Card title="Most saturated areas">
+          <div className="cc-compact-list">
+            {(growthMap.summary.saturatedAreas.length ? growthMap.summary.saturatedAreas : ['Saturation detection ready']).map((area) => (
+              <div className="cc-blocker compact" key={`sat-${area}`}><AlertTriangle size={16} /><span>{area}</span></div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      {selectedArea ? (
+        <Card title={selectedArea.area} eyebrow="Area intelligence detail">
+          <div className="cc-list">
+            <div className="cc-list-item"><strong>Growth Opportunity Score</strong><p>{selectedArea.growthOpportunityScore}</p></div>
+            <div className="cc-list-item"><strong>Saturation Score</strong><p>{selectedArea.saturationScore}</p></div>
+            <div className="cc-list-item"><strong>Andwell Advantage Score</strong><p>{selectedArea.andwellAdvantageScore}</p></div>
+            <div className="cc-list-item"><strong>Referral Source Potential</strong><p>{selectedArea.referralSourcePotential}</p></div>
+            <div className="cc-list-item"><strong>Partnership Potential</strong><p>{selectedArea.partnershipPotential}</p></div>
+            <div className="cc-list-item"><strong>Payer Value Potential</strong><p>{selectedArea.payerValuePotential}</p></div>
+            <div className="cc-list-item"><strong>Safe talk track</strong><p>{selectedArea.safeTalkTrack}</p></div>
+            <div className="cc-list-item"><strong>What not to say</strong><p>{selectedArea.avoidLanguage}</p></div>
+            <div className="cc-list-item"><strong>Recommended next move</strong><p>{selectedArea.nextMove}</p></div>
+          </div>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+function StrategyScreen({ report, onBuild, matrix, growthMap }: { report: IntelligenceReport | null; onBuild: () => void; matrix: AdvantageMatrix; growthMap: GrowthMap }) {
   if (!report) {
-    return <EmptyState title="Strategy needs an AI build" body="Enter sources and let the AI build market strategy, field coaching, and executive outputs." action={<Button onClick={onBuild}>Build Intelligence</Button>} />;
+    return <EmptyState title="Strategy builder ready" body="Enter public sources and build intelligence to generate growth plays, field guidance, and leadership strategy outputs." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />;
   }
 
   const expertBrief = report.expertBrief;
@@ -827,7 +964,7 @@ function StrategyScreen({ report, onBuild }: { report: IntelligenceReport | null
         <Metric label="Competitors" value={report.competitorsAnalyzed} detail="Analyzed in latest report" tone="blue" />
         <Metric label="Pages reviewed" value={number(report.pagesReviewed)} detail="Public evidence pages" tone="teal" />
         <Metric label="Matched services" value={report.matchedServiceFindings} detail="Clearly offered by competitors" tone="green" />
-        <Metric label="AI guardrails" value={report.humanReviewItems} detail="Claims using guarded language" tone="amber" />
+        <Metric label="Evidence guardrails" value={report.aiGovernance?.guardedUseCount ?? 0} detail="Claims kept in safe language" tone="amber" />
       </div>
       {expertBrief ? (
         <Card title="Expert leadership brief" eyebrow="AI strategy layer" action={<Badge tone="dark">Score {expertBrief.expertScore}</Badge>}>
@@ -845,7 +982,7 @@ function StrategyScreen({ report, onBuild }: { report: IntelligenceReport | null
               <p>{scrubOutputText(expertBrief.fastestFieldMove)}</p>
             </div>
             <div className="cc-brief-callout warning">
-              <span>AI guardrail</span>
+              <span>Evidence guardrail</span>
               <p>{scrubOutputText(expertBrief.governanceWarning)}</p>
             </div>
           </div>
@@ -915,6 +1052,13 @@ function StrategyScreen({ report, onBuild }: { report: IntelligenceReport | null
           ))}
         </div>
       </Card>
+      <Card title="Matrix and map strategy signals" eyebrow="What and where">
+        <div className="cc-list">
+          <div className="cc-list-item"><strong>Capability comparison</strong><p>{matrix.summary.capabilitiesMapped} capabilities mapped across {matrix.summary.competitorsCompared || 'active'} competitors.</p></div>
+          <div className="cc-list-item"><strong>Top growth opportunities</strong><p>{growthMap.summary.topGrowthAreas.join(', ') || 'Run source intake to rank growth areas.'}</p></div>
+          <div className="cc-list-item"><strong>Field focus zones</strong><p>{growthMap.summary.fieldFocusZones.join(', ') || 'Growth map ready to build from source evidence.'}</p></div>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -925,7 +1069,9 @@ function CoachScreen({
   setQuestion,
   askBusy,
   askResponse,
-  onAsk
+  onAsk,
+  matrix,
+  growthMap
 }: {
   report: IntelligenceReport | null;
   question: string;
@@ -933,16 +1079,27 @@ function CoachScreen({
   askBusy: boolean;
   askResponse: AskResponse | null;
   onAsk: () => void;
+  matrix: AdvantageMatrix;
+  growthMap: GrowthMap;
 }) {
   const starters = [
-    'What should the field team say safely?',
-    'Where does Andwell appear strongest?',
-    'What should leaders do next?'
+    'What should I say to a referral source?',
+    'What differentiates Andwell here?',
+    'Where does Andwell appear most differentiated?',
+    'Which competitors overlap most with Andwell?',
+    'Where should Andwell focus growth?',
+    'Where is the market most saturated?',
+    'What is the safest growth angle?',
+    'What should leadership know?',
+    'What can field teams use right now?',
+    'What should we avoid saying?',
+    'What source evidence supports this?',
+    'What is the next best move?'
   ];
 
   return (
     <div className="cc-stack">
-      <Card title="AI Intelligence Coach" action={<Badge tone={report ? 'green' : 'amber'}>{report ? 'Report loaded' : 'Needs scan'}</Badge>}>
+      <Card title="AI Intelligence Coach" action={<Badge tone={report ? 'green' : 'amber'}>{report ? 'Evidence package loaded' : 'Coach engine ready'}</Badge>}>
         <div className="cc-coach-intro">
           <Sparkles size={20} />
           <div>
@@ -961,7 +1118,7 @@ function CoachScreen({
             {askBusy ? <RefreshCcw size={16} className="cc-spin" /> : <Send size={16} />} Ask AI Coach
           </Button>
         </div>
-        <Notice title="Evidence-only answers" body={report ? 'Answers include confidence, cited evidence, safe wording, guardrails, and next moves.' : 'Build intelligence from competitor sources first so the coach has stored evidence to answer from.'} tone={report ? 'blue' : 'amber'} />
+        <Notice title="Evidence intelligence ready" body={report ? `Answers use stored evidence plus ${matrix.summary.capabilitiesMapped} capability signals and ${growthMap.areas.length} market areas.` : 'Build intelligence from public sources so the system can answer with matrix and growth-map evidence.'} tone={report ? 'blue' : 'amber'} />
       </Card>
       {askResponse ? (
         <Card title="Coach answer" action={<Badge tone={toneForStatus(askResponse.confidence)}>{displayStatus(askResponse.confidence)}</Badge>}>
@@ -983,8 +1140,8 @@ function CoachScreen({
   );
 }
 
-function ReportScreen({ report, approvedItems }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[] }) {
-  if (!report) return <EmptyState title="No executive report yet" body="Build intelligence from public competitor sources to generate a leadership-ready report." />;
+function ReportScreen({ report, approvedItems, growthMap, matrix }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[]; growthMap: GrowthMap; matrix: AdvantageMatrix }) {
+  if (!report) return <EmptyState title="Executive report ready" body="Build intelligence from public competitor sources to generate a leadership-ready output package." />;
   const builtServices = Array.from(new Set(approvedItems.map((item) => item.serviceLine))).slice(0, 6);
   const sourceIssues = (report.sourceHealth || []).filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length + report.crawlErrors.length;
 
@@ -999,7 +1156,7 @@ function ReportScreen({ report, approvedItems }: { report: IntelligenceReport | 
           <Metric label="Report status" value="Built" detail="AI-generated from stored evidence" tone="green" />
           <Metric label="Scrubbed outputs" value={approvedItems.length} detail="Safe language items" tone="green" />
           <Metric label="Public pages" value={report.pagesReviewed} detail="Reviewed by crawler and AI rules" tone="teal" />
-          <Metric label="Guardrails" value={report.humanReviewItems} detail="Claims kept cautious" tone="amber" />
+          <Metric label="Guardrails" value={report.aiGovernance?.guardedUseCount ?? 0} detail="Claims kept cautious" tone="amber" />
         </div>
         <div className="cc-report-actions">
           <div className="cc-blocker-list">
@@ -1054,6 +1211,28 @@ function ReportScreen({ report, approvedItems }: { report: IntelligenceReport | 
           ))}
         </div>
         <div className="cc-report-section">
+          <h3>Advantage Matrix summary</h3>
+          <article>
+            <strong>{matrix.summary.capabilitiesMapped} capabilities mapped with Andwell as baseline</strong>
+            <p>Competitors compared: {matrix.summary.competitorsCompared || 'Ready to build'}. Andwell advantage signals: {matrix.summary.advantageSignals || 'Ready to build'}.</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
+          <h3>Growth Map summary</h3>
+          <article>
+            <strong>Top growth areas</strong>
+            <p>{growthMap.summary.topGrowthAreas.join(', ') || 'Additional public source material would strengthen this report package.'}</p>
+          </article>
+          <article>
+            <strong>Most saturated areas</strong>
+            <p>{growthMap.summary.saturatedAreas.join(', ') || 'Current evidence supports a cautious positioning angle.'}</p>
+          </article>
+          <article>
+            <strong>Field focus zones</strong>
+            <p>{growthMap.summary.fieldFocusZones.join(', ') || 'Growth map is ready to build once source intake expands.'}</p>
+          </article>
+        </div>
+        <div className="cc-report-section">
           <h3>Scrubbed field language</h3>
           {approvedItems.length ? approvedItems.slice(0, 8).map((item) => (
             <article key={item.id}>
@@ -1063,8 +1242,8 @@ function ReportScreen({ report, approvedItems }: { report: IntelligenceReport | 
             </article>
           )) : (
             <article>
-              <strong>No scrubbed language yet</strong>
-              <p>Build intelligence from public sources and the AI will generate guarded field language.</p>
+              <strong>Field language engine ready</strong>
+              <p>Build intelligence from public sources to generate field-safe language, strategic angles, and next moves.</p>
             </article>
           )}
         </div>
@@ -1104,17 +1283,17 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
       detail: '/api/health, /api/diagnostics, /api/runtime, /api/analyze, /api/ask'
     },
     {
-      title: 'Supabase source of truth',
+      title: 'Storage service',
       ok: Boolean(state.runtime?.persistence.supabaseConfigured),
-      detail: state.runtime?.persistence.supabaseConfigured ? 'Production writes are configured for Supabase.' : 'Local JSON fallback is active until Supabase variables are set.'
+      detail: state.runtime?.persistence.supabaseConfigured ? 'Primary persistence is active for production writes.' : 'Primary persistence is not configured in this environment.'
     },
     {
-      title: 'OpenAI enrichment',
+      title: 'Analysis service',
       ok: Boolean(state.analyzeHealth?.aiConfigured),
-      detail: state.analyzeHealth?.aiConfigured ? 'AI extraction and coaching can enrich stored evidence.' : 'Rule-based analysis remains available without an API key.'
+      detail: state.analyzeHealth?.aiConfigured ? 'Advanced extraction is active for deeper evidence intelligence.' : 'Deterministic evidence analysis is active for source processing.'
     },
     {
-      title: 'Hosting safety limits',
+      title: 'Processing limits',
       ok: Boolean(state.runtime),
       detail: state.runtime ? `${state.runtime.limits.maxCompetitorsPerScan} competitors per scan, ${state.runtime.limits.crawlMaxPagesPerSite} pages per site.` : 'Runtime diagnostics are still loading.'
     }
@@ -1129,7 +1308,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
         <Metric label="Crawl pages" value={state.analyzeHealth?.crawlMaxPagesPerSiteLimit || 0} detail="Max per competitor" tone="slate" />
       </div>
       <div className="cc-dashboard-grid">
-        <Card title="Production checks" eyebrow="Hostinger deployment">
+        <Card title="Operational checks" eyebrow="System diagnostics">
           <div className="cc-check-grid">
             {checks.map((check) => (
               <div key={check.title} className={`cc-check ${check.ok ? 'ok' : 'attention'}`}>
@@ -1153,14 +1332,14 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
               <Database size={17} />
               <div>
                 <strong>Persistence behavior</strong>
-                <p>{state.runtime?.persistence.supabaseConfigured ? 'Reports, competitors, source history, and catalog overrides persist through Supabase.' : 'The app is usable for development, but Hostinger production should set Supabase URL and service role variables.'}</p>
+                <p>{state.runtime?.persistence.supabaseConfigured ? 'Reports, competitors, source history, and catalog overrides persist through the primary storage service.' : 'Primary storage is not configured in this environment, so development persistence behavior applies.'}</p>
               </div>
             </div>
             <div className="cc-list-item">
               <Bot size={17} />
               <div>
-                <strong>AI behavior</strong>
-                <p>{state.analyzeHealth?.aiConfigured ? `Configured model: ${state.runtime?.ai.model || 'OpenAI model from environment'}.` : 'AI enrichment is off, so the app explains that it is using crawler and rule-based intelligence.'}</p>
+                <strong>Analysis behavior</strong>
+                <p>{state.analyzeHealth?.aiConfigured ? `Advanced extraction model is configured: ${state.runtime?.ai.model || 'environment model'}.` : 'Source intelligence processing remains active using deterministic evidence analysis.'}</p>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import type { CompetitorInput, EvidenceStrength, FieldRisk, Finding, IntelligenceReport, RecommendedReviewAction, ReviewStatus, SourceHealth, SubserviceFinding } from '../../lib/types';
 import type { CatalogOverride, StoredReview } from '../../lib/store';
 
-export type TabId = 'dashboard' | 'sources' | 'review' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
+export type TabId = 'dashboard' | 'sources' | 'matrix' | 'map' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
 
 export type ApiStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -14,7 +14,7 @@ export type ReportSummary = {
   subservicesMapped: number;
   matchedServiceFindings: number;
   potentialAndwellAdvantages: number;
-  humanReviewItems: number;
+  guardrailCount?: number;
   competitors: string[];
   executiveSummary: string;
 };
@@ -78,11 +78,14 @@ export type AskResponse = {
     sourceTitle?: string;
     evidenceExcerpt: string;
     safeSalesWording: string;
-    reviewStatus: ReviewStatus;
+    reviewStatus?: ReviewStatus;
     evidenceStrength?: EvidenceStrength;
     recommendedReviewAction?: RecommendedReviewAction;
     reviewReason?: string;
     fieldRisk?: FieldRisk;
+    aiReliability?: string;
+    recommendedUse?: string;
+    usageGuidance?: string;
     recommendedAction: string;
   }>;
 };
@@ -101,8 +104,6 @@ export type CommandCenterState = {
 
 export type ReviewableFinding = (Finding | SubserviceFinding) & {
   kind: 'service' | 'subservice';
-  effectiveReviewStatus: ReviewStatus | 'Needs edits';
-  savedReview?: StoredReview;
 };
 
 export type ScanResult = {

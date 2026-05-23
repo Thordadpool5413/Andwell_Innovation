@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { calculateAIGovernanceSummary } from '../../../lib/intelligence-policy';
 import { getReport, readStore } from '../../../lib/store';
 
 export const runtime = 'nodejs';
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
       subservicesMapped: report.subservicesMapped,
       matchedServiceFindings: report.matchedServiceFindings,
       potentialAndwellAdvantages: report.potentialAndwellAdvantages,
-      humanReviewItems: report.humanReviewItems,
+      aiGovernance: report.aiGovernance || calculateAIGovernanceSummary(report),
+      guardrailCount: (report.aiGovernance || calculateAIGovernanceSummary(report)).guardedUseCount,
       competitors: report.analyses.map((analysis) => analysis.name),
       executiveSummary: report.executiveSummary
     }))

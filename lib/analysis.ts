@@ -1,6 +1,7 @@
 import { andwellCatalog } from './andwell';
 import { buildExpertBrief } from './expert-engine';
 import { enrichReportIntelligence } from './intelligence-policy';
+import { projectLegacyReviewToGovernance } from './ai-governance';
 import type { CompetitorAnalysis, CompetitorInput, Confidence, CrawledPage, ExecutiveInsight, Finding, IntelligenceReport, Status, SubserviceFinding, CompetitorScore, ThreatLevel } from './types';
 
 function norm(text: string) {
@@ -188,7 +189,7 @@ function buildScore(analysis: Omit<CompetitorAnalysis, 'score'>): CompetitorScor
   const total = Math.max(analysis.findings.length, 1);
   const matched = analysis.findings.filter((f) => f.competitorStatus === 'Clearly offered');
   const notMatched = analysis.findings.filter((f) => f.competitorStatus !== 'Clearly offered');
-  const reviewItems = analysis.findings.filter((f) => f.reviewStatus !== 'Sales usable with evidence');
+  const reviewItems = analysis.findings.filter((f) => projectLegacyReviewToGovernance(f).recommendedUse !== 'Use confidently');
   const serviceLineMatchScore = Math.round((matched.length / total) * 100);
   const subserviceDepthScore = Math.round(analysis.findings.reduce((sum, f) => sum + f.subserviceDepthScore, 0) / total);
   const andwellDifferentiationScore = Math.round((notMatched.length / total) * 100);
@@ -234,7 +235,7 @@ export function analyzeCompetitor(input: CompetitorInput, pages: CrawledPage[], 
   return { ...analysisWithoutScore, score: buildScore(analysisWithoutScore) };
 }
 
-function executiveInsights(scores: CompetitorScore[], humanReviewItems: number): ExecutiveInsight[] {
+function executiveInsights(scores: CompetitorScore[], guardedItems: number): ExecutiveInsight[] {
   const topThreat = [...scores].sort((a, b) => (b.serviceLineMatchScore + b.subserviceDepthScore) - (a.serviceLineMatchScore + a.subserviceDepthScore))[0];
   const biggestDifferentiation = [...scores].sort((a, b) => b.andwellDifferentiationScore - a.andwellDifferentiationScore)[0];
   const insights: ExecutiveInsight[] = [];
@@ -254,9 +255,9 @@ function executiveInsights(scores: CompetitorScore[], humanReviewItems: number):
   });
   insights.push({
     title: 'Guarded language required',
-    priority: humanReviewItems > 20 ? 'High' : 'Medium',
+    priority: guardedItems > 20 ? 'High' : 'Medium',
     audience: 'Admin',
-    summary: `${humanReviewItems} findings have limited or partial evidence, so the AI should keep them cautious instead of turning them into strong claims.`,
+    summary: `${guardedItems} findings have limited or partial evidence, so the intelligence engine should keep them cautious instead of turning them into strong claims.`,
     action: 'Use the AI-built safe wording and avoid definitive competitor claims unless the source evidence directly supports them.'
   });
   insights.push({
@@ -275,9 +276,10 @@ export function buildReport(analyses: CompetitorAnalysis[], crawlErrors: { url: 
   const competitorScores = analyses.map((a) => a.score);
   const matchedServiceFindings = allFindings.filter((f) => f.competitorStatus === 'Clearly offered').length;
   const potentialAndwellAdvantages = allFindings.filter((f) => f.competitorStatus !== 'Clearly offered').length;
-  const humanReviewItems = allFindings.filter((f) => f.reviewStatus !== 'Sales usable with evidence').length + allSubserviceFindings.filter((f) => f.reviewStatus !== 'Sales usable with evidence').length;
+  const governanceItems = [...allFindings, ...allSubserviceFindings].map(projectLegacyReviewToGovernance);
+  const guardedItems = governanceItems.filter((item) => item.recommendedUse !== 'Use confidently').length;
   const topScore = [...competitorScores].sort((a, b) => b.andwellDifferentiationScore - a.andwellDifferentiationScore)[0];
-  const expertBrief = buildExpertBrief(analyses, competitorScores, allFindings, allSubserviceFindings, humanReviewItems);
+  const expertBrief = buildExpertBrief(analyses, competitorScores, allFindings, allSubserviceFindings, guardedItems);
   return enrichReportIntelligence({
     id: `report_${Date.now()}`,
     generatedAt: new Date().toISOString(),
@@ -288,9 +290,9 @@ export function buildReport(analyses: CompetitorAnalysis[], crawlErrors: { url: 
     subservicesMapped: andwellCatalog.reduce((sum, s) => sum + s.subservices.length, 0),
     matchedServiceFindings,
     potentialAndwellAdvantages,
-    humanReviewItems,
+    humanReviewItems: guardedItems,
     executiveSummary: `This analysis compared Andwell Health Partners against ${analyses.length} competitor website${analyses.length === 1 ? '' : 's'} using public website evidence. The system created ${allSubserviceFindings.length} subservice level findings, found ${matchedServiceFindings} clearly matched service line findings, and identified ${potentialAndwellAdvantages} potential Andwell advantage findings. ${topScore ? `The strongest differentiation opportunity appears to be against ${topScore.competitorName}.` : ''} Not found publicly means the service was not clearly found in reviewed public pages, not that the competitor definitively does not provide it. Expert score: ${expertBrief.expertScore}.`,
-    executiveInsights: executiveInsights(competitorScores, humanReviewItems),
+    executiveInsights: executiveInsights(competitorScores, guardedItems),
     competitorScores,
     analyses,
     allFindings,

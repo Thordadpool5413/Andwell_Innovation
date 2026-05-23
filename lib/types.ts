@@ -7,6 +7,8 @@ export type ExpertAudience = 'CEO' | 'COO' | 'Sales Leader' | 'Sales Rep' | 'Adm
 export type EvidenceStrength = 'Strong' | 'Moderate' | 'Weak' | 'Missing';
 export type RecommendedReviewAction = 'Approve' | 'Edit' | 'Reject' | 'Investigate';
 export type FieldRisk = 'Low' | 'Medium' | 'High';
+export type AIRecommendedUse = 'Use confidently' | 'Use with guardrails' | 'Investigate first' | 'Avoid claim';
+export type AIReliability = 'High' | 'Medium' | 'Low';
 
 export type CrawledPage = {
   url: string;
@@ -109,6 +111,9 @@ export type SubserviceFinding = {
   recommendedReviewAction?: RecommendedReviewAction;
   reviewReason?: string;
   fieldRisk?: FieldRisk;
+  aiReliability?: AIReliability;
+  recommendedUse?: AIRecommendedUse;
+  usageGuidance?: string;
 };
 
 export type Finding = {
@@ -133,6 +138,9 @@ export type Finding = {
   recommendedReviewAction?: RecommendedReviewAction;
   reviewReason?: string;
   fieldRisk?: FieldRisk;
+  aiReliability?: AIReliability;
+  recommendedUse?: AIRecommendedUse;
+  usageGuidance?: string;
   subserviceFindings: SubserviceFinding[];
   clearlyMatchedSubservices: number;
   totalSubservices: number;
@@ -235,8 +243,21 @@ export type ReportReadiness = {
   nextAction: string;
   approvedEvidenceCount: number;
   openReviewCount: number;
+  highReliabilityCount: number;
+  guardedUseCount: number;
+  investigateCount: number;
   crawlWarningCount: number;
   sourceIssueCount: number;
+};
+
+export type AIGovernanceSummary = {
+  aiReliabilityScore: number;
+  usageGuidance: string;
+  riskFlags: string[];
+  recommendedNextAction: string;
+  highReliabilityCount: number;
+  guardedUseCount: number;
+  investigateCount: number;
 };
 
 export type RecommendedAction = {
@@ -273,5 +294,6 @@ export type IntelligenceReport = {
   expertBrief?: ExpertBrief;
   sourceHealth?: SourceHealth[];
   readiness?: ReportReadiness;
+  aiGovernance?: AIGovernanceSummary;
   recommendedActions?: RecommendedAction[];
 };

@@ -8,8 +8,8 @@ export async function GET() {
     ok: true,
     app: 'Andwell Innovation Command Center',
     version: 'andwell-innovation-standalone-bootstrap-2026-05-19-01',
-    message: 'If this route returns this exact version, Hostinger is running the GitHub main build through the patched standalone Node.js Next server.',
-    expectedServer: 'server.js Hostinger Node server',
+    message: 'If this route returns this exact version, the active deployment is serving the latest command center build.',
+    expectedServer: 'Node.js Next server',
     checkedAt: new Date().toISOString()
   });
 }

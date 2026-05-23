@@ -1,4 +1,5 @@
 import type { CompetitorAnalysis, CompetitorScore, ExpertBrief, ExpertFieldPlay, ExpertPriority, ExpertRecommendation, ExpertWatchItem, Finding, SubserviceFinding } from './types';
+import { projectLegacyReviewToGovernance } from './ai-governance';
 
 const expertVersion = 'foremost-expert-2026.05.18';
 
@@ -26,8 +27,9 @@ function evidenceScore(finding: Finding | SubserviceFinding) {
   const confidence = finding.confidence === 'High' ? 34 : finding.confidence === 'Moderate' ? 22 : finding.confidence === 'Low' ? 12 : 4;
   const status = finding.competitorStatus === 'Clearly offered' ? 28 : finding.competitorStatus === 'Mentioned only' ? 20 : finding.competitorStatus === 'Related but not equivalent' ? 15 : finding.competitorStatus === 'Unclear' ? 8 : 5;
   const source = finding.sourceUrl ? 16 : 0;
-  const review = finding.reviewStatus === 'Sales usable with evidence' || finding.reviewStatus === 'Approved for sales use' ? 14 : finding.reviewStatus === 'Manager review suggested' ? 6 : 0;
-  return clamp(confidence + status + source + review);
+  const governance = projectLegacyReviewToGovernance(finding);
+  const useScore = governance.recommendedUse === 'Use confidently' ? 14 : governance.recommendedUse === 'Use with guardrails' ? 6 : governance.recommendedUse === 'Investigate first' ? 2 : 0;
+  return clamp(confidence + status + source + useScore);
 }
 
 function recommendation(id: string, input: Omit<ExpertRecommendation, 'id'>): ExpertRecommendation {
@@ -69,7 +71,7 @@ function bestGaps(findings: Finding[]) {
     .map((entry) => entry.finding);
 }
 
-function buildRecommendations(analyses: CompetitorAnalysis[], scores: CompetitorScore[], humanReviewItems: number): ExpertRecommendation[] {
+function buildRecommendations(analyses: CompetitorAnalysis[], scores: CompetitorScore[], guardedItems: number): ExpertRecommendation[] {
   const threats = topThreats(scores);
   const opportunities = topOpportunities(scores);
   const recommendations: ExpertRecommendation[] = [];
@@ -79,9 +81,9 @@ function buildRecommendations(analyses: CompetitorAnalysis[], scores: Competitor
     recommendations.push(recommendation('leadership-threat-review', {
       priority: priorityFromScore(score.serviceLineMatchScore + score.subserviceDepthScore / 2),
       audience: 'CEO',
-      title: `Review ${score.competitorName} as the highest visible competitive threat`,
+      title: `Prioritize ${score.competitorName} as the highest visible competitive threat`,
       reasoning: `${score.competitorName} has ${score.serviceLineMatchScore}% service line overlap and ${score.subserviceDepthScore}% subservice depth against the Andwell taxonomy.`,
-      action: `Hold a focused leadership review on ${score.strongestMatches.slice(0, 4).join(', ') || 'the strongest overlap areas'} and decide whether field messaging or public Andwell positioning needs reinforcement.`,
+      action: `Hold a focused leadership decision session on ${score.strongestMatches.slice(0, 4).join(', ') || 'the strongest overlap areas'} and decide whether field messaging or public Andwell positioning needs reinforcement.`,
       safeLanguage: 'Treat public overlap as a visibility signal, not a complete operating comparison. Validate operational claims before field use.',
       reviewRequired: true
     }));
@@ -100,14 +102,14 @@ function buildRecommendations(analyses: CompetitorAnalysis[], scores: Competitor
     }));
   }
 
-  if (humanReviewItems > 0) {
+  if (guardedItems > 0) {
     recommendations.push(recommendation('governance-review-queue', {
-      priority: humanReviewItems > 40 ? 'Critical' : 'High',
+      priority: guardedItems > 40 ? 'Critical' : 'High',
       audience: 'Admin',
-      title: 'Clear the review queue before publishing field language',
-      reasoning: `${humanReviewItems} findings require manager review, human review, approval, or rejection before being treated as approved sales language.`,
-      action: 'Approve, edit, or reject the highest value findings first, especially any findings tied to strategic threat competitors or high opportunity service lines.',
-      safeLanguage: 'Use reviewed evidence and approved wording only. Not found publicly must never become does not offer.',
+      title: 'Apply evidence guardrails before broad field rollout',
+      reasoning: `${guardedItems} findings currently require guarded usage because public evidence is partial or low-confidence.`,
+      action: 'Prioritize source strengthening for the highest-value claims tied to strategic threat competitors or high-opportunity service lines.',
+      safeLanguage: 'Use source-backed guarded wording. Not found publicly must never become does not offer.',
       reviewRequired: true
     }));
   }
@@ -147,7 +149,7 @@ function buildFieldPlays(analyses: CompetitorAnalysis[]): ExpertFieldPlay[] {
       objectionResponse: finding.competitorStatus === 'Clearly offered'
         ? `That relationship makes sense. The question is whether this patient needs the specific depth Andwell can support inside ${finding.serviceLine}.`
         : `I would not assume what another provider does or does not offer. What I can show you is where Andwell publicly and operationally supports ${finding.serviceLine}.`,
-      proofNeeded: finding.sourceUrl ? `Use this source before field use: ${finding.sourceUrl}` : 'Confirm with approved internal proof or manager review before using as a competitive claim.',
+      proofNeeded: finding.sourceUrl ? `Use this source before field use: ${finding.sourceUrl}` : 'Confirm with stronger source evidence before using as a competitive claim.',
       avoidSaying: finding.avoidSaying
     }));
   }).slice(0, 12);
@@ -171,8 +173,8 @@ function buildWatchlist(scores: CompetitorScore[], analyses: CompetitorAnalysis[
       items.push(watchItem(`${analysis.id}-ai-risk`, {
         competitorName: analysis.name,
         signal: aiRisks.slice(0, 3).join('; '),
-        whyItMatters: 'AI extracted review risks should be checked before they become coaching language or leadership talking points.',
-        nextCheck: 'Review source evidence and approve, edit, or reject before battlecard use.',
+        whyItMatters: 'AI extracted risk signals should be checked before they become coaching language or leadership talking points.',
+        nextCheck: 'Review source evidence and strengthen the claim before battlecard use.',
         priority: 'High'
       }));
     }
@@ -181,27 +183,27 @@ function buildWatchlist(scores: CompetitorScore[], analyses: CompetitorAnalysis[
   return items.slice(0, 10);
 }
 
-export function buildExpertBrief(analyses: CompetitorAnalysis[], scores: CompetitorScore[], allFindings: Finding[], allSubserviceFindings: SubserviceFinding[], humanReviewItems: number): ExpertBrief {
+export function buildExpertBrief(analyses: CompetitorAnalysis[], scores: CompetitorScore[], allFindings: Finding[], allSubserviceFindings: SubserviceFinding[], guardedItems: number): ExpertBrief {
   const threats = topThreats(scores);
   const opportunities = topOpportunities(scores);
   const averageThreat = scores.length
     ? scores.reduce((sum, score) => sum + score.serviceLineMatchScore + score.subserviceDepthScore + score.evidenceStrengthScore - score.reviewRiskScore, 0) / scores.length
     : 0;
-  const expertScore = clamp(55 + averageThreat / 5 + Math.min(18, allFindings.length / 10) - Math.min(18, humanReviewItems / 10));
+  const expertScore = clamp(55 + averageThreat / 5 + Math.min(18, allFindings.length / 10) - Math.min(18, guardedItems / 10));
   const bestOpportunity = opportunities[0];
   const topThreat = threats[0];
-  const salesReady = allFindings.filter((finding) => finding.reviewStatus === 'Sales usable with evidence' || finding.reviewStatus === 'Approved for sales use').length;
+  const salesReady = allFindings.filter((finding) => projectLegacyReviewToGovernance(finding).recommendedUse === 'Use confidently').length;
   const topGaps = bestGaps(allFindings).slice(0, 5);
   const reviewRatio = allFindings.length + allSubserviceFindings.length
-    ? humanReviewItems / (allFindings.length + allSubserviceFindings.length)
+    ? guardedItems / (allFindings.length + allSubserviceFindings.length)
     : 0;
 
   return {
     expertVersion,
     generatedAt: new Date().toISOString(),
     expertScore,
-    marketPosture: topThreat ? `${topThreat.threatLevel}: ${topThreat.competitorName} is the most visible overlap risk.` : 'No competitor threat posture available yet.',
-    expertSummary: `The expert engine reviewed ${analyses.length} competitor analysis set${analyses.length === 1 ? '' : 's'}, ${allFindings.length} service line findings, and ${allSubserviceFindings.length} subservice findings. It identified ${salesReady} service findings that are closest to field usable and ${humanReviewItems} items that require review before being treated as approved language.`,
+    marketPosture: topThreat ? `${topThreat.threatLevel}: ${topThreat.competitorName} is the most visible overlap risk.` : 'Competitive posture will populate as source intelligence expands.',
+    expertSummary: `The expert engine reviewed ${analyses.length} competitor analysis set${analyses.length === 1 ? '' : 's'}, ${allFindings.length} service line findings, and ${allSubserviceFindings.length} subservice findings. It identified ${salesReady} service findings closest to direct field use and ${guardedItems} items that should stay in guarded language until evidence is strengthened.`,
     leadershipDecision: topThreat
       ? `Decide whether ${topThreat.competitorName} requires a targeted leadership response, field coaching focus, or Andwell public messaging reinforcement.`
       : 'Run a competitor scan before making a leadership decision.',
@@ -212,11 +214,11 @@ export function buildExpertBrief(analyses: CompetitorAnalysis[], scores: Competi
       ? `Use ${topGaps[0].serviceLine} as the fastest field positioning opportunity, but keep the wording grounded in reviewed public evidence.`
       : 'Use the highest confidence shared service lines as coaching anchors until more competitor gaps are reviewed.',
     governanceWarning: reviewRatio > 0.35
-      ? 'High review load detected. Do not publish broad battlecards until the highest value claims are approved, edited, or rejected.'
-      : 'Governance load is manageable, but every not found publicly statement still requires careful wording.',
+      ? 'High guardrail load detected. Do not publish broad battlecards until the highest value claims are source-strengthened.'
+      : 'Guardrail load is manageable, but every not found publicly statement still requires careful wording.',
     strongestThreats: threats.map((score) => `${score.competitorName}: ${score.threatLevel}, ${score.serviceLineMatchScore}% service overlap, ${score.subserviceDepthScore}% depth`),
     bestOpportunities: opportunities.map((score) => `${score.competitorName}: ${score.andwellDifferentiationScore}% Andwell differentiation, lead with ${score.leadWith.slice(0, 4).join(', ')}`),
-    recommendations: buildRecommendations(analyses, scores, humanReviewItems),
+    recommendations: buildRecommendations(analyses, scores, guardedItems),
     fieldPlays: buildFieldPlays(analyses),
     watchlist: buildWatchlist(scores, analyses)
   };

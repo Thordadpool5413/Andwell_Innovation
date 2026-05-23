@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { calculateStoredReadiness } from '../../../lib/intelligence-policy';
+import { calculateAIGovernanceSummary, calculateStoredReadiness } from '../../../lib/intelligence-policy';
 import { readStore } from '../../../lib/store';
 
 export const runtime = 'nodejs';
@@ -9,6 +9,7 @@ export async function GET() {
   const store = await readStore();
   const latest = store.reports[0] || null;
   const readiness = latest ? calculateStoredReadiness(latest) : null;
+  const aiGovernance = latest ? calculateAIGovernanceSummary(latest) : null;
   return NextResponse.json({
     ok: true,
     route: '/api/diagnostics',
@@ -21,6 +22,7 @@ export async function GET() {
       latestReportId: latest?.id || null,
       latestReportGeneratedAt: latest?.generatedAt || null,
       readiness,
+      aiGovernance,
       sourceHealth: latest?.sourceHealth?.map((source) => ({
         url: source.url || source.input,
         status: source.status,

@@ -10,7 +10,7 @@
     "build:next": "npm run clean:next && next build",
     "build:hostinger": "npm run build",
     "build:strict": "npm run clean:next && cross-env CIH_STRICT_BUILD=1 next build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "start": "node app.js",
     "serve": "node app.js",
     "hostinger:start": "node app.js",

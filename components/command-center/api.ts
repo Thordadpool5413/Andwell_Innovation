@@ -1,5 +1,4 @@
-import type { CompetitorInput, IntelligenceReport, ReviewStatus } from '../../lib/types';
-import type { StoredReview } from '../../lib/store';
+import type { CompetitorInput, IntelligenceReport } from '../../lib/types';
 import type { AnalyzeHealth, AskResponse, CatalogItem, ReportSummary, RuntimeInfo } from './model';
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
@@ -65,10 +64,6 @@ export async function fetchCompetitors() {
   return apiFetch<{ competitors: CompetitorInput[] }>('/api/competitors');
 }
 
-export async function fetchReviews() {
-  return apiFetch<{ reviews: StoredReview[] }>('/api/reviews');
-}
-
 export async function fetchCatalog() {
   return apiFetch<{ catalog: CatalogItem[]; overrides: unknown[] }>('/api/catalog');
 }
@@ -90,18 +85,6 @@ export async function runAnalysis(competitors: CompetitorInput[], maxPagesPerSit
       save: true,
       useAI: true
     }
-  });
-}
-
-export async function saveReview(input: {
-  findingId: string;
-  status: ReviewStatus | 'Needs edits';
-  note?: string;
-  reviewer?: string;
-}) {
-  return apiFetch<{ review: StoredReview }>('/api/reviews', {
-    method: 'POST',
-    body: input
   });
 }
 

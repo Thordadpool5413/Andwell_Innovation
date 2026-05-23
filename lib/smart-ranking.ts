@@ -1,4 +1,4 @@
-import type { Confidence, CrawledPage, EvidenceStrength, FieldRisk, RecommendedReviewAction, ReviewStatus, Status } from './types';
+import type { AIReliability, AIRecommendedUse, Confidence, CrawledPage, EvidenceStrength, FieldRisk, RecommendedReviewAction, Status } from './types';
 
 export type EvidenceLike = {
   type?: string;
@@ -13,11 +13,14 @@ export type EvidenceLike = {
   matchedTerms?: string[];
   safeSalesWording: string;
   avoidSaying?: string;
-  reviewStatus: ReviewStatus;
+  reviewStatus?: string;
   evidenceStrength?: EvidenceStrength;
   recommendedReviewAction?: RecommendedReviewAction;
   reviewReason?: string;
   fieldRisk?: FieldRisk;
+  aiReliability?: AIReliability;
+  recommendedUse?: AIRecommendedUse;
+  usageGuidance?: string;
 };
 
 const stopWords = new Set([
@@ -84,10 +87,11 @@ function confidenceWeight(confidence: Confidence) {
   return 2;
 }
 
-function reviewWeight(reviewStatus: ReviewStatus) {
-  if (reviewStatus === 'Sales usable with evidence' || reviewStatus === 'Approved for sales use') return 12;
-  if (reviewStatus === 'Manager review suggested') return 4;
-  if (reviewStatus === 'Needs human review') return -6;
+function governanceWeight(item: EvidenceLike) {
+  const use = item.recommendedUse || (item.aiReliability === 'High' ? 'Use confidently' : item.aiReliability === 'Medium' ? 'Use with guardrails' : item.aiReliability === 'Low' ? 'Investigate first' : undefined);
+  if (use === 'Use confidently') return 14;
+  if (use === 'Use with guardrails') return 6;
+  if (use === 'Investigate first') return -4;
   return -10;
 }
 
@@ -107,7 +111,7 @@ export function scoreEvidenceItem(item: EvidenceLike, terms: string[]) {
   const sourceBonus = item.sourceUrl ? 8 : 0;
   const businessFit = weightedTextScore(searchable, businessTerms);
 
-  return questionFit + specificity + sourceBonus + statusWeight(item.competitorStatus) + confidenceWeight(item.confidence) + reviewWeight(item.reviewStatus) + Math.min(20, businessFit);
+  return questionFit + specificity + sourceBonus + statusWeight(item.competitorStatus) + confidenceWeight(item.confidence) + governanceWeight(item) + Math.min(20, businessFit);
 }
 
 export function rankEvidenceForQuestion<T extends EvidenceLike>(items: T[], question: string) {
