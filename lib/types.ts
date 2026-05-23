@@ -260,6 +260,45 @@ export type AIGovernanceSummary = {
   investigateCount: number;
 };
 
+export type ProviderRegistryMatch = {
+  source: 'cms_hospice' | 'cms_home_health' | 'nppes';
+  providerName: string;
+  confidence: number;
+  npi?: string;
+  ccn?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  addressLine1?: string;
+  phone?: string;
+  taxonomy?: string[];
+};
+
+export type ProviderEnrichmentItem = {
+  competitorUrl: string;
+  competitorName: string;
+  matches: ProviderRegistryMatch[];
+  bestMatchConfidence: number;
+  generatedAt: string;
+};
+
+export type GeographicSignal = {
+  areaLabel: string;
+  county?: string;
+  state?: string;
+  latitude?: number;
+  longitude?: number;
+  confidence: number;
+  source: 'census_geocoder' | 'inferred';
+};
+
+export type ExternalDataSummary = {
+  providersEnriched: number;
+  providerMatches: number;
+  geographicSignals: number;
+  lastEnrichedAt: string;
+};
+
 export type RecommendedAction = {
   id: string;
   label: string;
@@ -296,4 +335,7 @@ export type IntelligenceReport = {
   readiness?: ReportReadiness;
   aiGovernance?: AIGovernanceSummary;
   recommendedActions?: RecommendedAction[];
+  providerEnrichment?: ProviderEnrichmentItem[];
+  geographicSignals?: GeographicSignal[];
+  externalDataSummary?: ExternalDataSummary;
 };

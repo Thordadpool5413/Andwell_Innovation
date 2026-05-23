@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { crawlSite } from '../../../lib/crawler';
 import { analyzeCompetitor, buildReport } from '../../../lib/analysis';
 import { extractCompetitorIntelligence, isAIExtractionConfigured } from '../../../lib/ai-extractor';
+import { enrichProvidersWithFreeSources } from '../../../lib/free-health-intel';
 import { enrichReportIntelligence } from '../../../lib/intelligence-policy';
 import { saveReport } from '../../../lib/store';
 import { rateLimit, requestIp } from '../../../lib/rate-limit';
@@ -273,6 +274,16 @@ export async function POST(req: NextRequest) {
     const aiErrors = results.map((item) => item.aiError).filter((item): item is NonNullable<AnalyzeResult['aiError']> => Boolean(item));
     const finalSourceHealth = mergeCrawlSourceHealth(sourceHealth, analyses, crawlErrors);
     const report = buildReport(analyses, [...crawlErrors, ...aiErrors.map((item) => ({ url: item.url, error: `AI extraction: ${item.error}` }))]);
+    const enrichment = await enrichProvidersWithFreeSources(competitors).catch(() => ({
+      providerEnrichment: [],
+      geographicSignals: [],
+      externalDataSummary: {
+        providersEnriched: 0,
+        providerMatches: 0,
+        geographicSignals: 0,
+        lastEnrichedAt: new Date().toISOString()
+      }
+    }));
     const aiSummaries = analyses.map((analysis) => analysis.aiExtraction?.leadershipSummary).filter(Boolean);
     const enhancedReport = enrichReportIntelligence({
       ...report,
@@ -283,7 +294,10 @@ export async function POST(req: NextRequest) {
       aiLeadershipSummary: aiSummaries.length ? aiSummaries.join('\n\n') : undefined,
       executiveSummary: aiSummaries.length
         ? `${report.executiveSummary}\n\nAI leadership summary: ${aiSummaries.join(' ')}`
-        : report.executiveSummary
+        : report.executiveSummary,
+      providerEnrichment: enrichment.providerEnrichment,
+      geographicSignals: enrichment.geographicSignals,
+      externalDataSummary: enrichment.externalDataSummary
     }, finalSourceHealth);
 
     if (body.save !== false) await saveReport(enhancedReport);

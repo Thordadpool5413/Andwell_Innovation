@@ -23,6 +23,7 @@ export async function GET() {
       latestReportGeneratedAt: latest?.generatedAt || null,
       readiness,
       aiGovernance,
+      externalDataSummary: latest?.externalDataSummary || null,
       sourceHealth: latest?.sourceHealth?.map((source) => ({
         url: source.url || source.input,
         status: source.status,
