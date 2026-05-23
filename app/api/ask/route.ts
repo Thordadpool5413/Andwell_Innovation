@@ -74,18 +74,21 @@ export async function POST(req: NextRequest) {
   const guardedItems = ranked.filter((item) => item.recommendedUse !== 'Use confidently').slice(0, 5);
   const topEvidence = ranked.slice(0, 3);
   const nextBestActions = topEvidence.map(fieldActionFromEvidence);
+  const geoSignal = activeReport.geographicSignals?.[0];
 
   const answerParts = [];
-  answerParts.push(`Based on the latest stored report from ${new Date(activeReport.generatedAt).toLocaleString()}, I found ${ranked.length} relevant finding${ranked.length === 1 ? '' : 's'} and ranked them by question fit, evidence strength, confidence, source quality, and reliability.`);
+  answerParts.push(`Direct answer: Based on the latest stored report from ${new Date(activeReport.generatedAt).toLocaleString()}, I found ${ranked.length} relevant finding${ranked.length === 1 ? '' : 's'} and ranked them by question fit, evidence strength, confidence, source quality, and reliability.`);
   if (topEvidence.length) {
-    answerParts.push(`Top evidence: ${topEvidence.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''} | ${item.competitorStatus}`).join('; ')}.`);
+    answerParts.push(`Evidence basis: ${topEvidence.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''} | ${item.competitorStatus}`).join('; ')}.`);
   }
   if (potentialAdvantages.length) answerParts.push(`Potential Andwell advantages: ${potentialAdvantages.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   if (matches.length) answerParts.push(`Public matches found: ${matches.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   if (guardedItems.length) answerParts.push(`Use guarded language for limited-evidence items: ${guardedItems.map((item) => `${item.competitorName} | ${item.serviceLine}${item.subservice ? ` | ${item.subservice}` : ''}`).join('; ')}.`);
   answerParts.push(`Capability comparison signal: ${matches.length} confirmed overlap item${matches.length === 1 ? '' : 's'}, ${potentialAdvantages.length} Andwell positioning opportunity item${potentialAdvantages.length === 1 ? '' : 's'}.`);
+  answerParts.push(`Geographic signal: ${geoSignal ? `${geoSignal.areaLabel} with confidence ${geoSignal.confidence}` : 'Current source set is geographically limited; add competitor location pages to strengthen area-level guidance.'}.`);
+  answerParts.push('Strategic angle: use capability depth and source-backed positioning instead of absolute competitive claims.');
   if (nextBestActions.length) answerParts.push(`Recommended next move: ${nextBestActions[0]}`);
-  answerParts.push('Use safe language. Not found publicly means the service was not clearly found in reviewed public pages, not that the competitor does not provide it.');
+  answerParts.push('Safe language: Not found publicly means the service was not clearly found in reviewed public pages, not that the competitor does not provide it.');
 
   return NextResponse.json({
     answer: answerParts.join(' '),

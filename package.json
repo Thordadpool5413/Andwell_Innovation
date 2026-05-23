@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "next dev",
     "clean:next": "node scripts/clean-next.mjs",
-    "build": "npm run clean:next && next build",
-    "build:next": "npm run clean:next && next build",
+    "build": "npm run clean:next && cross-env NEXT_DISABLE_WEBPACK_CACHE=1 next build",
+    "build:next": "npm run clean:next && cross-env NEXT_DISABLE_WEBPACK_CACHE=1 next build",
     "build:hostinger": "npm run build",
-    "build:strict": "npm run clean:next && cross-env CIH_STRICT_BUILD=1 next build",
+    "build:strict": "npm run clean:next && cross-env CIH_STRICT_BUILD=1 NEXT_DISABLE_WEBPACK_CACHE=1 next build",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "start": "node app.js",
     "serve": "node app.js",

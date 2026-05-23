@@ -12,7 +12,7 @@ The app keeps the visible command center wired to real Next.js API routes. Supab
 - Intelligence library powered by stored reports and AI-built outputs
 - AI Intelligence Coach powered by `/api/ask` and stored evidence
 - Executive report preview with AI-built strategy, guardrails, and print support
-- Server-side APIs for analysis, competitors, reports, reviews, catalog, diagnostics, runtime, health, and version checks
+- Server-side APIs for analysis, competitors, reports, reviews (compatibility), catalog, diagnostics, runtime, health, version, enrichment, and intelligence rebuild checks
 - Supabase production persistence, with MongoDB/local JSON fallback
 - Hostinger Node.js startup through `app.js`, which delegates to `server.js`
 
@@ -92,6 +92,10 @@ After deployment, check:
 /api/runtime
 /api/diagnostics
 /api/analyze
+/api/enrich/providers
+/api/enrich/geography
+/api/intelligence/rebuild
+/api/intelligence/sources
 ```
 
 The API routes should return JSON. If an API route returns HTML, the site is not running as the Node.js Next server.

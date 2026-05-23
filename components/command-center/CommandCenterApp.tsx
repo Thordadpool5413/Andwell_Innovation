@@ -861,6 +861,7 @@ function MatrixScreen({ matrix }: { matrix: AdvantageMatrix }) {
             <div className="cc-list-item"><strong>Status</strong><p>{selectedCell.status}</p></div>
             <div className="cc-list-item"><strong>Confidence</strong><p>{selectedCell.confidence}</p></div>
             <div className="cc-list-item"><strong>Evidence count</strong><p>{selectedCell.evidenceCount}</p></div>
+            <div className="cc-list-item"><strong>Why this status</strong><p>{selectedCell.strategicAngle}</p></div>
             {viewMode !== 'field' ? <div className="cc-list-item"><strong>Source summary</strong><p>{selectedCell.sourceSummary}</p></div> : null}
             {viewMode !== 'executive' ? <div className="cc-list-item"><strong>Safe talk track</strong><p>{selectedCell.safeTalkTrack}</p></div> : null}
             {viewMode !== 'executive' ? <div className="cc-list-item"><strong>What not to say</strong><p>{selectedCell.avoidLanguage}</p></div> : null}
@@ -941,9 +942,14 @@ function GrowthMapScreen({ growthMap }: { growthMap: GrowthMap }) {
             <div className="cc-list-item"><strong>Referral Source Potential</strong><p>{selectedArea.referralSourcePotential}</p></div>
             <div className="cc-list-item"><strong>Partnership Potential</strong><p>{selectedArea.partnershipPotential}</p></div>
             <div className="cc-list-item"><strong>Payer Value Potential</strong><p>{selectedArea.payerValuePotential}</p></div>
+            <div className="cc-list-item"><strong>Competitors detected</strong><p>{selectedArea.competitors.join(', ') || 'Evidence limited'}</p></div>
+            <div className="cc-list-item"><strong>Relevant capabilities</strong><p>{selectedArea.capabilities.join(', ') || 'Evidence limited'}</p></div>
+            <div className="cc-list-item"><strong>Service gap signal</strong><p>{selectedArea.signal === 'Evidence Limited' ? 'Add more public competitor service-area evidence for this area.' : 'Current source evidence supports a cautious positioning angle in this area.'}</p></div>
+            <div className="cc-list-item"><strong>Competitive overlap</strong><p>{selectedArea.saturationScore >= 70 ? 'Competitive overlap appears high in this area.' : 'Competitive overlap appears moderate to low in this area.'}</p></div>
             <div className="cc-list-item"><strong>Safe talk track</strong><p>{selectedArea.safeTalkTrack}</p></div>
             <div className="cc-list-item"><strong>What not to say</strong><p>{selectedArea.avoidLanguage}</p></div>
             <div className="cc-list-item"><strong>Recommended next move</strong><p>{selectedArea.nextMove}</p></div>
+            <div className="cc-list-item"><strong>Suggested source to add next</strong><p>{selectedArea.sourceToAdd}</p></div>
           </div>
         </Card>
       ) : null}
@@ -1304,7 +1310,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
       <div className="cc-metric-grid">
         <Metric label="Runtime" value={state.runtime?.nodeVersion || 'Unknown'} detail={state.runtime?.nextRuntime || 'Next.js API'} tone="blue" />
         <Metric label="Persistence" value={state.runtime?.persistence.supabaseConfigured ? 'Supabase' : 'Local'} detail="Production source of truth" tone={state.runtime?.persistence.supabaseConfigured ? 'green' : 'amber'} />
-        <Metric label="AI extraction" value={state.analyzeHealth?.aiConfigured ? 'Enabled' : 'Optional'} detail={state.analyzeHealth?.message || 'Analyze API'} tone={state.analyzeHealth?.aiConfigured ? 'teal' : 'amber'} />
+        <Metric label="Analysis mode" value={state.analyzeHealth?.aiConfigured ? 'Advanced extraction' : 'Deterministic evidence'} detail={state.analyzeHealth?.message || 'Analyze API'} tone={state.analyzeHealth?.aiConfigured ? 'teal' : 'amber'} />
         <Metric label="Crawl pages" value={state.analyzeHealth?.crawlMaxPagesPerSiteLimit || 0} detail="Max per competitor" tone="slate" />
       </div>
       <div className="cc-dashboard-grid">
@@ -1319,7 +1325,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
             ))}
           </div>
         </Card>
-        <Card title="Operational notes" action={<Badge tone={state.runtime?.persistence.supabaseConfigured ? 'green' : 'amber'}>{state.runtime?.persistence.supabaseConfigured ? 'Production' : 'Fallback'}</Badge>}>
+        <Card title="Operational notes" action={<Badge tone={state.runtime?.persistence.supabaseConfigured ? 'green' : 'amber'}>{state.runtime?.persistence.supabaseConfigured ? 'Primary storage active' : 'Development storage active'}</Badge>}>
           <div className="cc-list">
             <div className="cc-list-item">
               <Shield size={17} />
@@ -1347,7 +1353,7 @@ function SystemScreen({ state }: { state: CommandCenterState }) {
       </div>
       <Card title="Endpoint checklist">
         <div className="cc-check-grid">
-          {['/api/health', '/api/version', '/api/runtime', '/api/diagnostics', '/api/analyze', '/api/competitors', '/api/reports', '/api/catalog', '/api/ask'].map((route) => (
+          {['/api/health', '/api/version', '/api/runtime', '/api/diagnostics', '/api/analyze', '/api/competitors', '/api/reports', '/api/catalog', '/api/ask', '/api/enrich/providers', '/api/enrich/geography', '/api/intelligence/rebuild', '/api/intelligence/sources'].map((route) => (
             <div key={route} className="cc-endpoint">
               <code>{route}</code>
               <Badge tone="blue">JSON</Badge>
