@@ -1,7 +1,0 @@
-{
-  "app": "Andwell Innovation Command Center",
-  "deploymentFingerprint": "andwell-innovation-merged-app-2026-05-19-01",
-  "branch": "main",
-  "pushedFrom": "Codex GitHub workflow",
-  "message": "This fingerprint proves the merged Andwell Innovation app build reached the main branch and Hostinger pulled the current source."
-}

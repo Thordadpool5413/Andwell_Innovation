@@ -1,5 +1,5 @@
-import AdvancedCommandCenter from '../components/command-center/AdvancedCommandCenter';
+import CommandCenterApp from '../components/command-center/CommandCenterApp';
 
 export default function Page() {
-  return <AdvancedCommandCenter />;
+  return <CommandCenterApp />;
 }
