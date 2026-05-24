@@ -6,28 +6,40 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const id = url.searchParams.get('id');
-  if (id) {
-    const report = await getReport(id);
-    if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
-    return NextResponse.json({ report });
+  try {
+    const url = new URL(req.url);
+    const id = url.searchParams.get('id');
+    if (id) {
+      const report = await getReport(id);
+      if (!report) return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
+      return NextResponse.json({ report });
+    }
+    const store = await readStore();
+    const reports = (store.reports || []).map((report) => {
+      const safeGovernance = report.aiGovernance || calculateAIGovernanceSummary(report);
+      return {
+        id: report.id,
+        generatedAt: report.generatedAt,
+        competitorsAnalyzed: report.competitorsAnalyzed ?? 0,
+        pagesReviewed: report.pagesReviewed ?? 0,
+        serviceLinesMapped: report.serviceLinesMapped ?? 0,
+        subservicesMapped: report.subservicesMapped ?? 0,
+        matchedServiceFindings: report.matchedServiceFindings ?? 0,
+        potentialAndwellAdvantages: report.potentialAndwellAdvantages ?? 0,
+        aiGovernance: safeGovernance,
+        guardrailCount: safeGovernance.guardedUseCount ?? 0,
+        competitors: Array.isArray(report.analyses) ? report.analyses.map((analysis) => analysis?.name || 'Competitor') : [],
+        executiveSummary: report.executiveSummary || 'Executive summary is being generated from the current source package.'
+      };
+    });
+    return NextResponse.json({ reports });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: 'Reports service temporarily unavailable.',
+        details: error instanceof Error ? error.message : 'Unknown reports route failure'
+      },
+      { status: 500 }
+    );
   }
-  const store = await readStore();
-  return NextResponse.json({
-    reports: store.reports.map((report) => ({
-      id: report.id,
-      generatedAt: report.generatedAt,
-      competitorsAnalyzed: report.competitorsAnalyzed,
-      pagesReviewed: report.pagesReviewed,
-      serviceLinesMapped: report.serviceLinesMapped,
-      subservicesMapped: report.subservicesMapped,
-      matchedServiceFindings: report.matchedServiceFindings,
-      potentialAndwellAdvantages: report.potentialAndwellAdvantages,
-      aiGovernance: report.aiGovernance || calculateAIGovernanceSummary(report),
-      guardrailCount: (report.aiGovernance || calculateAIGovernanceSummary(report)).guardedUseCount,
-      competitors: report.analyses.map((analysis) => analysis.name),
-      executiveSummary: report.executiveSummary
-    }))
-  });
 }
