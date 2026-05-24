@@ -43,21 +43,42 @@ export default function CommandCenterApp() {
   const loadWorkspace = useCallback(async () => {
     setState((current) => ({ ...current, status: 'loading', error: '' }));
     try {
-      const [reportsPayload, competitorsPayload, catalogPayload, analyzePayload, runtimePayload] = await Promise.all([
+      const [reportsResult, competitorsResult, catalogResult, analyzeResult, runtimeResult] = await Promise.allSettled([
         fetchReports(),
         fetchCompetitors(),
         fetchCatalog(),
         fetchAnalyzeHealth(),
-        fetchRuntime().catch(() => null)
+        fetchRuntime()
       ]);
+
+      const reportsPayload = reportsResult.status === 'fulfilled' ? reportsResult.value : { reports: [] };
+      const competitorsPayload = competitorsResult.status === 'fulfilled' ? competitorsResult.value : { competitors: [] };
+      const catalogPayload = catalogResult.status === 'fulfilled' ? catalogResult.value : { catalog: [] };
+      const analyzePayload = analyzeResult.status === 'fulfilled' ? analyzeResult.value : null;
+      const runtimePayload = runtimeResult.status === 'fulfilled' ? runtimeResult.value : null;
+
+      let currentReport = null;
       const latest = reportsPayload.reports[0];
-      const reportPayload = latest?.id ? await fetchReport(latest.id) : { report: null };
+      if (latest?.id) {
+        try {
+          const reportPayload = await fetchReport(latest.id);
+          currentReport = reportPayload.report;
+        } catch {
+          currentReport = null;
+        }
+      }
+
+      const coreFailures = [reportsResult, competitorsResult, catalogResult].filter((r) => r.status === 'rejected').length;
+      if (coreFailures === 3) {
+        throw new Error('Core workspace services are unavailable right now. Refresh to retry.');
+      }
+      const partialFailures = [reportsResult, competitorsResult, catalogResult, analyzeResult, runtimeResult].filter((r) => r.status === 'rejected').length;
       setState({
         status: 'ready',
-        error: '',
+        error: partialFailures ? 'Some services are temporarily delayed. Core intelligence screens remain available.' : '',
         competitors: competitorsPayload.competitors,
         reports: reportsPayload.reports,
-        currentReport: reportPayload.report,
+        currentReport,
         catalog: catalogPayload.catalog,
         analyzeHealth: analyzePayload,
         runtime: runtimePayload
