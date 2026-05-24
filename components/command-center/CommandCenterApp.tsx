@@ -7,7 +7,13 @@ import { LoadingState, Notice } from './ui';
 import { AppShell } from './AppShell';
 import { HomeScreen } from './screens/HomeScreen';
 import { BuildIntelligenceScreen } from './screens/BuildIntelligenceScreen';
-import { CoachScreenView, GrowthMapScreenView, LibraryScreenView, MatrixScreenView, ReportScreenView, StrategyScreenView, SystemScreenView } from './screens/OperationalScreens';
+import { LibraryScreenView } from './screens/LibraryScreen';
+import { MatrixScreenView } from './screens/MatrixScreen';
+import { GrowthMapScreenView } from './screens/GrowthMapScreen';
+import { StrategyScreenView } from './screens/StrategyScreen';
+import { CoachScreenView } from './screens/CoachScreen';
+import { ReportScreenView } from './screens/ReportScreen';
+import { SystemScreenView } from './screens/SystemScreen';
 import { currentNextAction, parseSourceInput, scanProgressPercent, toReviewable } from './helpers';
 import { buildAdvantageMatrix, buildGrowthMap, type AdvantageMatrix, type GrowthMap } from '../../lib/intelligence-views';
 
