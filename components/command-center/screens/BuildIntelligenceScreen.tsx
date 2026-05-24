@@ -43,7 +43,7 @@ export function BuildIntelligenceScreen({
           {!scanMessage && invalidCount ? <Notice title="Some sources need attention" body={`${invalidCount} entr${invalidCount === 1 ? 'y is' : 'ies are'} not a valid public website URL and will be skipped.`} tone="amber" /> : null}
         </Card>
 
-        <Card title="What the intelligence engine builds" action={<Badge tone="green">Output engine ready</Badge>}>
+        <Card title="What the intelligence engine builds" action={<Badge tone="green">{userCopy.build.pipelineReady}</Badge>}>
           <div className="cc-step-list">
             {['Reading public sources', 'Extracting service evidence', 'Scrubbing unsupported claims', 'Mapping capability comparison', 'Mapping market opportunity', 'Building field-safe language', 'Preparing strategy, coach, and executive outputs'].map((item, index) => (
               <div key={item} className="cc-step">

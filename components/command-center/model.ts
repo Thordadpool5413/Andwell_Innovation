@@ -1,7 +1,7 @@
 import type { CompetitorInput, EvidenceStrength, FieldRisk, Finding, IntelligenceReport, ReviewStatus, SourceHealth, SubserviceFinding } from '../../lib/types';
 import type { CatalogOverride } from '../../lib/store';
 
-export type TabId = 'dashboard' | 'sources' | 'matrix' | 'map' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
+export type TabId = 'dashboard' | 'sources' | 'matrix' | 'map' | 'library' | 'strategy' | 'coach' | 'report';
 
 export type ApiStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type ServiceHealthStatus = 'ok' | 'degraded' | 'down';

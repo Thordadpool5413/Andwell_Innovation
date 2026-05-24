@@ -124,16 +124,16 @@ export function HomeScreen({
       <div className="cc-dashboard-grid">
         <Card title="Advantage Matrix preview" eyebrow="Capability comparison">
           <div className="cc-list">
-            <div className="cc-list-item"><strong>Capabilities mapped</strong><p>{matrix.summary.capabilitiesMapped || 'Ready to compare Andwell capabilities'}</p></div>
-            <div className="cc-list-item"><strong>Competitors compared</strong><p>{matrix.summary.competitorsCompared || 'Capability matrix ready to build'}</p></div>
-            <div className="cc-list-item"><strong>Andwell advantages</strong><p>{matrix.summary.advantageSignals || 'Evidence guardrails active'}</p></div>
+            <div className="cc-list-item"><strong>Capabilities mapped</strong><p>{matrix.summary.capabilitiesMapped || userCopy.home.matrixFallbackCapabilities}</p></div>
+            <div className="cc-list-item"><strong>Competitors compared</strong><p>{matrix.summary.competitorsCompared || userCopy.home.matrixFallbackCompetitors}</p></div>
+            <div className="cc-list-item"><strong>Andwell advantages</strong><p>{matrix.summary.advantageSignals || userCopy.home.matrixFallbackAdvantages}</p></div>
           </div>
         </Card>
         <Card title="Growth Map preview" eyebrow="Market opportunity">
           <div className="cc-list">
-            <div className="cc-list-item"><strong>Top growth areas</strong><p>{topGrowth.join(', ') || 'Ready to map growth opportunities'}</p></div>
-            <div className="cc-list-item"><strong>Saturated areas</strong><p>{topSaturated.join(', ') || 'Market opportunity engine ready'}</p></div>
-            <div className="cc-list-item"><strong>Field focus zones</strong><p>{growthMap.summary.fieldFocusZones.join(', ') || 'Capability geography ready to build'}</p></div>
+            <div className="cc-list-item"><strong>Top growth areas</strong><p>{topGrowth.join(', ') || userCopy.home.mapFallbackGrowth}</p></div>
+            <div className="cc-list-item"><strong>Saturated areas</strong><p>{topSaturated.join(', ') || userCopy.home.mapFallbackSaturation}</p></div>
+            <div className="cc-list-item"><strong>Field focus zones</strong><p>{growthMap.summary.fieldFocusZones.join(', ') || userCopy.home.mapFallbackField}</p></div>
           </div>
         </Card>
       </div>

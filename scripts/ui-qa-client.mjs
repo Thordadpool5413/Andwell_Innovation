@@ -12,8 +12,7 @@ const tabs = [
   'Intelligence Library',
   'Strategy',
   'AI Coach',
-  'Executive Report',
-  'System Health'
+  'Executive Report'
 ];
 
 async function runViewport(name, contextOptions) {

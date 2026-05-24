@@ -13,7 +13,6 @@ import { GrowthMapScreenView } from './screens/GrowthMapScreen';
 import { StrategyScreenView } from './screens/StrategyScreen';
 import { CoachScreenView } from './screens/CoachScreen';
 import { ReportScreenView } from './screens/ReportScreen';
-import { SystemScreenView } from './screens/SystemScreen';
 import { currentNextAction, parseSourceInput, sanitizeUserFacingError, scanProgressPercent, toReviewable } from './helpers';
 import { buildAdvantageMatrix, buildGrowthMap, type AdvantageMatrix, type GrowthMap } from '../../lib/intelligence-views';
 
@@ -238,7 +237,6 @@ export default function CommandCenterApp() {
       {activeTab === 'strategy' ? <StrategyScreenView report={state.currentReport} onBuild={() => setActiveTab('sources')} matrix={matrix} growthMap={growthMap} /> : null}
       {activeTab === 'coach' ? <CoachScreenView report={state.currentReport} question={question} setQuestion={setQuestion} askBusy={askBusy} askResponse={askResponse} onAsk={() => void handleAsk()} growthMap={growthMap} matrix={matrix} /> : null}
       {activeTab === 'report' ? <ReportScreenView report={state.currentReport} approvedItems={approvedItems} growthMap={growthMap} matrix={matrix} /> : null}
-      {activeTab === 'system' ? <SystemScreenView state={state} /> : null}
     </AppShell>
   );
 }
