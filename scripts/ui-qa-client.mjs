@@ -21,7 +21,12 @@ async function runViewport(name, contextOptions) {
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   const errors = [];
-  page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      const loc = msg.location();
+      errors.push(`${msg.text()} @ ${loc.url || 'unknown'}`);
+    }
+  });
   page.on('pageerror', (err) => errors.push(err.message));
   await page.goto(baseUrl, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForTimeout(1000);
@@ -37,7 +42,13 @@ async function runViewport(name, contextOptions) {
       await page.waitForTimeout(250);
     }
     const button = page.getByRole('button', { name: new RegExp(tab, 'i') }).first();
-    await button.click({ timeout: 10000, force: true });
+    await button.scrollIntoViewIfNeeded();
+    try {
+      await button.click({ timeout: 10000, force: true });
+    } catch {
+      await button.focus();
+      await page.keyboard.press('Enter');
+    }
     await page.waitForTimeout(600);
     const safe = tab.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     await page.screenshot({ path: path.join(outDir, `${name}-${safe}.png`), fullPage: true });

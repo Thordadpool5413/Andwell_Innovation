@@ -15,6 +15,16 @@ export class ApiError extends Error {
   }
 }
 
+export type ScanLifecycleStatus = 'queued' | 'running' | 'completed' | 'failed' | 'timed_out';
+
+export type ScanLifecycleUpdate = {
+  jobId: string;
+  status: ScanLifecycleStatus;
+  progress: { done: number; total: number };
+  warnings: string[];
+  errors: string[];
+};
+
 async function apiFetch<T>(url: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(url, {
     ...options,
@@ -76,7 +86,11 @@ export async function fetchRuntime() {
   return apiFetch<RuntimeInfo>('/api/runtime');
 }
 
-export async function runAnalysis(competitors: CompetitorInput[], maxPagesPerSite = 8) {
+export async function runAnalysis(
+  competitors: CompetitorInput[],
+  maxPagesPerSite = 8,
+  onProgress?: (update: ScanLifecycleUpdate) => void
+) {
   const start = await apiFetch<{ jobId: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out' }>('/api/analyze', {
     method: 'POST',
     body: {
@@ -88,6 +102,13 @@ export async function runAnalysis(competitors: CompetitorInput[], maxPagesPerSit
   });
   const startedAt = Date.now();
   const timeoutMs = 240000;
+  onProgress?.({
+    jobId: start.jobId,
+    status: start.status,
+    progress: { done: 0, total: competitors.length },
+    warnings: [],
+    errors: []
+  });
   while (Date.now() - startedAt < timeoutMs) {
     const status = await apiFetch<{
       status: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out';
@@ -96,6 +117,13 @@ export async function runAnalysis(competitors: CompetitorInput[], maxPagesPerSit
       errors: string[];
       report?: IntelligenceReport | null;
     }>(`/api/analyze/status?jobId=${encodeURIComponent(start.jobId)}`);
+    onProgress?.({
+      jobId: start.jobId,
+      status: status.status,
+      progress: status.progress,
+      warnings: status.warnings || [],
+      errors: status.errors || []
+    });
     if (status.status === 'completed' || status.status === 'timed_out') {
       if (status.report) return status.report;
       throw new ApiError('The scan completed but report payload is missing.');
