@@ -23,25 +23,52 @@ function sanitizeCompetitor(competitor: CompetitorInput): CompetitorInput | null
 }
 
 export async function GET() {
-  const store = await readStore();
-  return NextResponse.json({ competitors: store.competitors });
+  try {
+    const store = await readStore();
+    return NextResponse.json({ competitors: store.competitors });
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      route: '/api/competitors',
+      error: error instanceof Error ? error.message : 'Competitor service unavailable.',
+      checkedAt: new Date().toISOString()
+    }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as { competitors?: CompetitorInput[] };
-  const competitors = (body.competitors || [])
-    .filter((competitor) => competitor.url?.trim())
-    .slice(0, 100)
-    .map(sanitizeCompetitor)
-    .filter((competitor): competitor is CompetitorInput => Boolean(competitor));
-  const store = await saveCompetitors(competitors);
-  return NextResponse.json({ competitors: store.competitors });
+  try {
+    const body = await req.json() as { competitors?: CompetitorInput[] };
+    const competitors = (body.competitors || [])
+      .filter((competitor) => competitor.url?.trim())
+      .slice(0, 100)
+      .map(sanitizeCompetitor)
+      .filter((competitor): competitor is CompetitorInput => Boolean(competitor));
+    const store = await saveCompetitors(competitors);
+    return NextResponse.json({ competitors: store.competitors });
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      route: '/api/competitors',
+      error: error instanceof Error ? error.message : 'Competitor update failed.',
+      checkedAt: new Date().toISOString()
+    }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
-  const body = await req.json().catch(() => ({})) as { url?: string };
-  const url = body.url?.trim();
-  if (!url) return NextResponse.json({ error: 'url is required.' }, { status: 400 });
-  const store = await deleteCompetitor(normalizeUrl(url));
-  return NextResponse.json({ competitors: store.competitors });
+  try {
+    const body = await req.json().catch(() => ({})) as { url?: string };
+    const url = body.url?.trim();
+    if (!url) return NextResponse.json({ error: 'url is required.' }, { status: 400 });
+    const store = await deleteCompetitor(normalizeUrl(url));
+    return NextResponse.json({ competitors: store.competitors });
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      route: '/api/competitors',
+      error: error instanceof Error ? error.message : 'Competitor deletion failed.',
+      checkedAt: new Date().toISOString()
+    }, { status: 500 });
+  }
 }

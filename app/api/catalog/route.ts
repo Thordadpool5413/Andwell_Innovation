@@ -6,37 +6,55 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const store = await readStore();
-  const overrides = new Map(store.catalogOverrides.map((override) => [override.serviceLine, override]));
-  const catalog = andwellCatalog.map((service) => ({
-    ...service,
-    override: overrides.get(service.serviceLine) || null
-  }));
-  return NextResponse.json({ catalog, overrides: store.catalogOverrides });
+  try {
+    const store = await readStore();
+    const overrides = new Map(store.catalogOverrides.map((override) => [override.serviceLine, override]));
+    const catalog = andwellCatalog.map((service) => ({
+      ...service,
+      override: overrides.get(service.serviceLine) || null
+    }));
+    return NextResponse.json({ catalog, overrides: store.catalogOverrides });
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      route: '/api/catalog',
+      error: error instanceof Error ? error.message : 'Catalog service unavailable.',
+      checkedAt: new Date().toISOString()
+    }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as {
-    serviceLine?: string;
-    description?: string;
-    safeLanguage?: string;
-    avoid?: string;
-    internalNotes?: string;
-    approvalStatus?: 'Draft' | 'Needs review' | 'Approved' | 'Retired' | 'Do not show to sales';
-  };
+  try {
+    const body = await req.json() as {
+      serviceLine?: string;
+      description?: string;
+      safeLanguage?: string;
+      avoid?: string;
+      internalNotes?: string;
+      approvalStatus?: 'Draft' | 'Needs review' | 'Approved' | 'Retired' | 'Do not show to sales';
+    };
 
-  if (!body.serviceLine) {
-    return NextResponse.json({ error: 'serviceLine is required.' }, { status: 400 });
+    if (!body.serviceLine) {
+      return NextResponse.json({ error: 'serviceLine is required.' }, { status: 400 });
+    }
+
+    const override = await saveCatalogOverride({
+      serviceLine: body.serviceLine,
+      description: body.description,
+      safeLanguage: body.safeLanguage,
+      avoid: body.avoid,
+      internalNotes: body.internalNotes,
+      approvalStatus: body.approvalStatus || 'Needs review'
+    });
+
+    return NextResponse.json({ override });
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      route: '/api/catalog',
+      error: error instanceof Error ? error.message : 'Catalog update failed.',
+      checkedAt: new Date().toISOString()
+    }, { status: 500 });
   }
-
-  const override = await saveCatalogOverride({
-    serviceLine: body.serviceLine,
-    description: body.description,
-    safeLanguage: body.safeLanguage,
-    avoid: body.avoid,
-    internalNotes: body.internalNotes,
-    approvalStatus: body.approvalStatus || 'Needs review'
-  });
-
-  return NextResponse.json({ override });
 }

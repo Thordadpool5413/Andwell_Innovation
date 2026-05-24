@@ -4,6 +4,14 @@ import type { CatalogOverride } from '../../lib/store';
 export type TabId = 'dashboard' | 'sources' | 'matrix' | 'map' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
 
 export type ApiStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type ServiceHealthStatus = 'ok' | 'degraded' | 'down';
+export type ServiceHealthKey = 'reports' | 'competitors' | 'catalog' | 'runtime' | 'analyze';
+export type ServiceHealthItem = {
+  status: ServiceHealthStatus;
+  httpStatus?: number;
+  lastError?: string;
+  checkedAt?: string;
+};
 
 export type ReportSummary = {
   id: string;
@@ -102,6 +110,7 @@ export type CommandCenterState = {
   catalog: CatalogItem[];
   analyzeHealth: AnalyzeHealth | null;
   runtime: RuntimeInfo | null;
+  serviceHealth: Record<ServiceHealthKey, ServiceHealthItem>;
   scanJobId?: string | null;
   scanStatus?: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out' | null;
   scanProgress?: { done: number; total: number } | null;

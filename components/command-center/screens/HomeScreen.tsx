@@ -1,9 +1,9 @@
 'use client';
 
-import { ArrowRight, BarChart3, Brain, FileText, UploadCloud } from 'lucide-react';
+import { ArrowRight, BarChart3, Brain, FileText, Map, ShieldCheck, UploadCloud } from 'lucide-react';
 import type { AdvantageMatrix, GrowthMap } from '../../../lib/intelligence-views';
 import type { CommandCenterState, ReviewableFinding, TabId } from '../model';
-import { Badge, Button, Card, Metric, Notice, formatDate, number } from '../ui';
+import { Badge, Button, Card, Notice, formatDate } from '../ui';
 
 export function HomeScreen({
   state,
@@ -36,20 +36,18 @@ export function HomeScreen({
   const approvedPreview = approvedItems.slice(0, 3);
   const pagesReviewed = report?.pagesReviewed || 0;
   const sourceCount = report?.sourceHealth?.filter((source) => source.status === 'crawled' || source.status === 'accepted').length || state.competitors.length;
-  const productCards = [
-    {
-      title: 'What',
-      body: 'The system turns public market evidence into safe, usable Andwell growth intelligence.'
-    },
-    {
-      title: 'Why',
-      body: 'Andwell needs repeatable intelligence for partnerships, payer value, service positioning, and high-acuity community care growth.'
-    },
-    {
-      title: 'How',
-      body: 'The engine ingests sources, scrubs unsupported claims, maps evidence to capabilities, compares competitors, and produces leadership-ready outputs.'
-    }
+  const processRail = [
+    'Reading public sources',
+    'Extracting service evidence',
+    'Scrubbing unsupported claims',
+    'Connecting evidence to Andwell capabilities',
+    'Building capability comparison',
+    'Mapping growth opportunities',
+    'Building field-safe language',
+    'Preparing executive output'
   ];
+  const topGrowth = growthMap.summary.topGrowthAreas.slice(0, 3);
+  const topSaturated = growthMap.summary.saturatedAreas.slice(0, 3);
 
   return (
     <div className="cc-stack">
@@ -57,16 +55,16 @@ export function HomeScreen({
         <div>
           <span className="cc-hero-kicker">Andwell Innovation and Growth</span>
           <h2 className="cc-hero-quote">Innovation and Growth is where Andwell Health Partners turns vision into infrastructure. We are building the future of high acuity community care, creating post acute partnerships that make us essential to Maine, connecting complex services through technology, and developing the value based contracting model that allows us to take risk, deliver better outcomes, save payers money, and grow because we are built for the complexity others cannot manage</h2>
-          <p>This intelligence engine converts public sources into scrubbed evidence, strategy, coaching language, and executive output in one guided workflow.</p>
+          <p>The system turns public evidence into trusted growth intelligence for capability positioning, geographic opportunity, field language, and leadership decisions.</p>
           <div className="cc-action-row">
             <Button variant="primary" onClick={() => onTab('sources')}><UploadCloud size={16} /> Build Andwell Intelligence</Button>
-            <Button onClick={() => onTab('strategy')}><BarChart3 size={16} /> View Strategy</Button>
-            <Button onClick={() => onTab('report')}><FileText size={16} /> Executive Report</Button>
+            <Button onClick={() => onTab('matrix')}><ShieldCheck size={16} /> Advantage Matrix</Button>
+            <Button onClick={() => onTab('map')}><Map size={16} /> Growth Map</Button>
           </div>
         </div>
         <div className="cc-status-panel">
           <Badge tone="green">Trusted output engine</Badge>
-          <strong>{report ? 'Intelligence package built' : 'Intelligence package ready'}</strong>
+          <strong>{report ? 'Latest intelligence package active' : 'Intelligence package ready to build'}</strong>
           <span>
             {report ? (
               <>
@@ -89,13 +87,16 @@ export function HomeScreen({
           ) : null}
         </div>
       </section>
-
-      <div className="cc-metric-grid">
-        <Metric label="Built outputs" value={approvedItems.length || 'Ready'} detail={approvedItems.length ? 'Trusted source-backed items' : 'Output engine ready to build'} tone="green" />
-        <Metric label="Competitors compared" value={report?.competitorsAnalyzed || 'Ready'} detail="Capability comparison surface" tone="blue" />
-        <Metric label="Growth areas" value={growthMap.summary.topGrowthAreas.length || 'Ready'} detail="Market opportunity ranking" tone="teal" />
-        <Metric label="Guarded claims" value={report?.aiGovernance?.guardedUseCount ?? 'Ready'} detail="Safety language constraints" tone="amber" />
-      </div>
+      <Card title="How the system works" eyebrow="AI-owned process">
+        <div className="cc-process-rail">
+          {processRail.map((step, index) => (
+            <div key={step} className="cc-process-step">
+              <span>{index + 1}</span>
+              <p>{step}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <div className="cc-dashboard-grid cc-dashboard-primary">
         <Card title="Build Intelligence cockpit" eyebrow="Primary workflow">
@@ -145,15 +146,6 @@ export function HomeScreen({
         </Card>
       </div>
 
-      <div className="cc-product-grid">
-        {productCards.map((item) => (
-          <div key={item.title} className="cc-product-card">
-            <span>{item.title}</span>
-            <p>{item.body}</p>
-          </div>
-        ))}
-      </div>
-
       <div className="cc-dashboard-grid">
         <Card title="Advantage Matrix preview" eyebrow="Capability comparison">
           <div className="cc-list">
@@ -161,12 +153,46 @@ export function HomeScreen({
             <div className="cc-list-item"><strong>Competitors compared</strong><p>{matrix.summary.competitorsCompared || 'Capability matrix ready to build'}</p></div>
             <div className="cc-list-item"><strong>Andwell advantages</strong><p>{matrix.summary.advantageSignals || 'Evidence guardrails active'}</p></div>
           </div>
+          <div className="cc-card-footer-actions">
+            <Button onClick={() => onTab('matrix')}><ArrowRight size={15} /> Open Advantage Matrix</Button>
+          </div>
         </Card>
         <Card title="Growth Map preview" eyebrow="Market opportunity">
           <div className="cc-list">
-            <div className="cc-list-item"><strong>Top growth areas</strong><p>{growthMap.summary.topGrowthAreas.join(', ') || 'Ready to map growth opportunities'}</p></div>
-            <div className="cc-list-item"><strong>Saturated areas</strong><p>{growthMap.summary.saturatedAreas.join(', ') || 'Market opportunity engine ready'}</p></div>
+            <div className="cc-list-item"><strong>Top growth areas</strong><p>{topGrowth.join(', ') || 'Ready to map growth opportunities'}</p></div>
+            <div className="cc-list-item"><strong>Saturated areas</strong><p>{topSaturated.join(', ') || 'Market opportunity engine ready'}</p></div>
             <div className="cc-list-item"><strong>Field focus zones</strong><p>{growthMap.summary.fieldFocusZones.join(', ') || 'Capability geography ready to build'}</p></div>
+          </div>
+          <div className="cc-card-footer-actions">
+            <Button onClick={() => onTab('map')}><ArrowRight size={15} /> Open Growth Map</Button>
+          </div>
+        </Card>
+      </div>
+
+      <div className="cc-dashboard-grid">
+        <Card title="Field guidance preview" eyebrow="What teams can use now">
+          {approvedPreview.length ? (
+            <div className="cc-list">
+              {approvedPreview.map((item) => (
+                <div className="cc-list-item" key={`guidance-${item.id}`}>
+                  <strong>{item.competitorName} | {item.serviceLine}</strong>
+                  <p>{item.safeSalesWording}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Notice title="Field guidance ready" body="Build intelligence to generate safe talk tracks, questions to ask, and strategic angles." tone="blue" />
+          )}
+        </Card>
+        <Card title="Executive output preview" eyebrow="Leadership summary">
+          <div className="cc-list">
+            <div className="cc-list-item"><strong>Executive summary</strong><p>{report?.executiveSummary || 'Build intelligence to generate the latest executive summary package.'}</p></div>
+            <div className="cc-list-item"><strong>Strategy next move</strong><p>{nextAction}</p></div>
+            <div className="cc-list-item"><strong>Report package</strong><p>{report ? 'Leadership output package is available now.' : 'Executive report engine ready to build.'}</p></div>
+          </div>
+          <div className="cc-card-footer-actions">
+            <Button onClick={() => onTab('strategy')}><BarChart3 size={15} /> Open Strategy</Button>
+            <Button onClick={() => onTab('report')}><FileText size={15} /> Open Executive Report</Button>
           </div>
         </Card>
       </div>

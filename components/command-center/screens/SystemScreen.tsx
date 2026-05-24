@@ -2,9 +2,17 @@
 
 import { CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { CommandCenterState } from '../model';
-import { Card, Metric } from '../ui';
+import { Card, Metric, formatDate } from '../ui';
 
 export function SystemScreenView({ state }: { state: CommandCenterState }) {
+  const serviceRows = [
+    { key: 'reports', label: 'Reports service' },
+    { key: 'competitors', label: 'Competitor service' },
+    { key: 'catalog', label: 'Catalog service' },
+    { key: 'analyze', label: 'Analysis service' },
+    { key: 'runtime', label: 'Runtime service' }
+  ] as const;
+  const hasIssues = serviceRows.some((row) => state.serviceHealth[row.key].status !== 'ok');
   const checks = [
     { title: 'API routes', ok: true, detail: '/api/health, /api/diagnostics, /api/runtime, /api/analyze, /api/ask' },
     { title: 'Storage service', ok: Boolean(state.runtime?.persistence.supabaseConfigured), detail: state.runtime?.persistence.supabaseConfigured ? 'Primary persistence is active for production writes.' : 'Primary persistence is not configured in this environment.' },
@@ -28,6 +36,25 @@ export function SystemScreenView({ state }: { state: CommandCenterState }) {
             </div>
           ))}
         </div>
+      </Card>
+      <Card title="Service status" eyebrow="Startup diagnostics">
+        <div className="cc-list">
+          {serviceRows.map((row) => {
+            const item = state.serviceHealth[row.key];
+            return (
+              <div className="cc-list-item" key={row.key}>
+                <strong>{row.label}</strong>
+                <p>
+                  {item.status === 'ok' ? 'Healthy' : item.status === 'down' ? 'Down' : 'Degraded'}
+                  {item.httpStatus ? ` | HTTP ${item.httpStatus}` : ''}
+                  {item.checkedAt ? ` | Checked ${formatDate(item.checkedAt)}` : ''}
+                  {item.lastError ? ` | ${item.lastError}` : ''}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        {!hasIssues ? <p className="cc-inline-note">All startup services are healthy.</p> : null}
       </Card>
     </div>
   );

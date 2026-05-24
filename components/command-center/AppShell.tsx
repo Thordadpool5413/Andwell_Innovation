@@ -2,13 +2,14 @@ import type { ReactNode } from 'react';
 import { Menu, PanelLeftClose, RefreshCcw } from 'lucide-react';
 import { Button, Badge } from './ui';
 import { commandCenterTabs } from './tabs';
-import type { TabId } from './model';
+import type { ServiceHealthItem, ServiceHealthKey, TabId } from './model';
 
 export function AppShell({
   activeTab,
   mobileOpen,
   reportCount,
   approvedCount,
+  serviceHealth,
   onClose,
   onChange,
   onOpen,
@@ -19,6 +20,7 @@ export function AppShell({
   mobileOpen: boolean;
   reportCount: number;
   approvedCount: number;
+  serviceHealth: Record<ServiceHealthKey, ServiceHealthItem>;
   onClose: () => void;
   onChange: (tab: TabId) => void;
   onOpen: () => void;
@@ -26,6 +28,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const active = commandCenterTabs.find((tab) => tab.id === activeTab) || commandCenterTabs[0];
+  const hasServiceIssue = Object.values(serviceHealth).some((item) => item.status !== 'ok');
 
   return (
     <div className="cc-app">
@@ -48,7 +51,14 @@ export function AppShell({
             <span>{active.help}</span>
           </div>
           <div className="cc-topbar-actions">
-            <Badge tone="green">Intelligence engine active</Badge>
+            <Badge tone={hasServiceIssue ? 'amber' : 'green'}>
+              {hasServiceIssue ? 'Service check needed' : 'Healthy'}
+            </Badge>
+            {hasServiceIssue ? (
+              <Button variant="ghost" onClick={() => onChange('system')}>
+                System Health
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={onRefresh}>
               <RefreshCcw size={16} /> Refresh
             </Button>

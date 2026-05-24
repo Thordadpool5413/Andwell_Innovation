@@ -322,6 +322,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ jobId: job.id, status: job.status }, { status: 202 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown analysis error' }, { status: 500 });
+    return NextResponse.json({
+      ok: false,
+      route: '/api/analyze',
+      error: error instanceof Error ? error.message : 'Unknown analysis error',
+      checkedAt: new Date().toISOString()
+    }, { status: 500 });
   }
 }
