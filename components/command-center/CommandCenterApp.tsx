@@ -70,7 +70,18 @@ export default function CommandCenterApp() {
 
       const coreFailures = [reportsResult, competitorsResult, catalogResult].filter((r) => r.status === 'rejected').length;
       if (coreFailures === 3) {
-        throw new Error('Core workspace services are unavailable right now. Refresh to retry.');
+        setState((current) => ({
+          ...current,
+          status: 'ready',
+          error: 'Operational checks are temporarily delayed. You can still start a new intelligence build.',
+          competitors: [],
+          reports: [],
+          currentReport: null,
+          catalog: [],
+          analyzeHealth: analyzePayload,
+          runtime: runtimePayload
+        }));
+        return;
       }
       const partialFailures = [reportsResult, competitorsResult, catalogResult, analyzeResult, runtimeResult].filter((r) => r.status === 'rejected').length;
       setState({
@@ -84,7 +95,15 @@ export default function CommandCenterApp() {
         runtime: runtimePayload
       });
     } catch (error) {
-      setState((current) => ({ ...current, status: 'error', error: error instanceof Error ? error.message : 'The workspace could not be loaded.' }));
+      setState((current) => ({
+        ...current,
+        status: 'ready',
+        error: 'Operational checks are temporarily delayed. Refresh to reconnect background services.',
+        competitors: current.competitors,
+        reports: current.reports,
+        currentReport: current.currentReport,
+        catalog: current.catalog
+      }));
     }
   }, []);
 
@@ -169,7 +188,7 @@ export default function CommandCenterApp() {
       onRefresh={() => void loadWorkspace()}
     >
       {state.status === 'loading' ? <LoadingState title="Loading command center" body="Reading reports, catalog, source history, and runtime status." /> : null}
-      {state.status === 'error' ? <Notice title="Workspace needs attention" body={state.error} tone="red" /> : null}
+      {state.error ? <Notice title="Operational checks delayed" body={state.error} tone="amber" /> : null}
       {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} nextAction={nextAction} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} onTab={setActiveTab} matrix={matrix} growthMap={growthMap} scanPercent={scanPercent} /> : null}
       {activeTab === 'sources' ? <BuildIntelligenceScreen state={state} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} scanPercent={scanPercent} /> : null}
       {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} /> : null}
