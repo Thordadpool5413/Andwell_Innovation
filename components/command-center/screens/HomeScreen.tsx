@@ -1,20 +1,15 @@
 'use client';
 
-import { ArrowRight, BarChart3, Brain, FileText, Map, ShieldCheck, UploadCloud } from 'lucide-react';
+import { BarChart3, FileText, Map, ShieldCheck, UploadCloud } from 'lucide-react';
 import type { AdvantageMatrix, GrowthMap } from '../../../lib/intelligence-views';
-import type { CommandCenterState, ReviewableFinding, TabId } from '../model';
-import { Badge, Button, Card, Notice, formatDate } from '../ui';
+import type { CommandCenterState, ReviewableFinding } from '../model';
+import { userCopy } from '../copy';
+import { Badge, Card, Notice, formatDate } from '../ui';
 
 export function HomeScreen({
   state,
   approvedItems,
   nextAction,
-  sourceText,
-  setSourceText,
-  scanBusy,
-  scanMessage,
-  onScan,
-  onTab,
   matrix,
   growthMap,
   scanPercent
@@ -22,12 +17,6 @@ export function HomeScreen({
   state: CommandCenterState;
   approvedItems: ReviewableFinding[];
   nextAction: string;
-  sourceText: string;
-  setSourceText: (value: string) => void;
-  scanBusy: boolean;
-  scanMessage: string;
-  onScan: () => void;
-  onTab: (tab: TabId) => void;
   matrix: AdvantageMatrix;
   growthMap: GrowthMap;
   scanPercent: number;
@@ -56,10 +45,10 @@ export function HomeScreen({
           <span className="cc-hero-kicker">Andwell Innovation and Growth</span>
           <h2 className="cc-hero-quote">Innovation and Growth is where Andwell Health Partners turns vision into infrastructure. We are building the future of high acuity community care, creating post acute partnerships that make us essential to Maine, connecting complex services through technology, and developing the value based contracting model that allows us to take risk, deliver better outcomes, save payers money, and grow because we are built for the complexity others cannot manage</h2>
           <p>The system turns public evidence into trusted growth intelligence for capability positioning, geographic opportunity, field language, and leadership decisions.</p>
-          <div className="cc-action-row">
-            <Button variant="primary" onClick={() => onTab('sources')}><UploadCloud size={16} /> Build Andwell Intelligence</Button>
-            <Button onClick={() => onTab('matrix')}><ShieldCheck size={16} /> Advantage Matrix</Button>
-            <Button onClick={() => onTab('map')}><Map size={16} /> Growth Map</Button>
+          <div className="cc-static-pills">
+            <span><UploadCloud size={15} /> Build Intelligence</span>
+            <span><ShieldCheck size={15} /> Advantage Matrix</span>
+            <span><Map size={15} /> Growth Map</span>
           </div>
         </div>
         <div className="cc-status-panel">
@@ -99,33 +88,19 @@ export function HomeScreen({
       </Card>
 
       <div className="cc-dashboard-grid cc-dashboard-primary">
-        <Card title="Build Intelligence cockpit" eyebrow="Primary workflow">
+        <Card title={userCopy.home.latestPackageTitle} eyebrow="Primary workflow">
           <div className="cc-next-action">
-            <Brain size={20} />
             <div>
-              <strong>Build Andwell Intelligence</strong>
+              <strong>Build Intelligence in the Build Intelligence tab</strong>
               <p>{nextAction}</p>
             </div>
           </div>
-          <label className="cc-label" htmlFor="dashboard-source-input">Public competitor sources</label>
-          <textarea
-            id="dashboard-source-input"
-            className="cc-textarea compact"
-            value={sourceText}
-            onChange={(event) => setSourceText(event.target.value)}
-            placeholder="https://competitor.org/services"
+          <Notice
+            title={userCopy.home.processingLocationNoticeTitle}
+            body={userCopy.home.processingLocationNoticeBody}
+            tone="blue"
           />
-          <div className="cc-action-row">
-            <Button variant="primary" onClick={onScan} disabled={scanBusy}>
-              <UploadCloud size={16} /> {scanBusy ? 'Building intelligence...' : 'Build Andwell Intelligence'}
-            </Button>
-            <Button onClick={() => onTab('sources')}>
-              <ArrowRight size={15} /> Open Build Intelligence
-            </Button>
-          </div>
-          {scanMessage ? <Notice title={scanBusy ? 'Intelligence build running' : 'Build status'} body={scanMessage} tone={scanBusy ? 'blue' : 'green'} /> : null}
         </Card>
-
         <Card title="Recent field-ready outputs" action={<Badge tone="blue">{approvedPreview.length} previewed</Badge>}>
           {approvedPreview.length ? (
             <div className="cc-priority-list">
@@ -153,18 +128,12 @@ export function HomeScreen({
             <div className="cc-list-item"><strong>Competitors compared</strong><p>{matrix.summary.competitorsCompared || 'Capability matrix ready to build'}</p></div>
             <div className="cc-list-item"><strong>Andwell advantages</strong><p>{matrix.summary.advantageSignals || 'Evidence guardrails active'}</p></div>
           </div>
-          <div className="cc-card-footer-actions">
-            <Button onClick={() => onTab('matrix')}><ArrowRight size={15} /> Open Advantage Matrix</Button>
-          </div>
         </Card>
         <Card title="Growth Map preview" eyebrow="Market opportunity">
           <div className="cc-list">
             <div className="cc-list-item"><strong>Top growth areas</strong><p>{topGrowth.join(', ') || 'Ready to map growth opportunities'}</p></div>
             <div className="cc-list-item"><strong>Saturated areas</strong><p>{topSaturated.join(', ') || 'Market opportunity engine ready'}</p></div>
             <div className="cc-list-item"><strong>Field focus zones</strong><p>{growthMap.summary.fieldFocusZones.join(', ') || 'Capability geography ready to build'}</p></div>
-          </div>
-          <div className="cc-card-footer-actions">
-            <Button onClick={() => onTab('map')}><ArrowRight size={15} /> Open Growth Map</Button>
           </div>
         </Card>
       </div>
@@ -190,9 +159,9 @@ export function HomeScreen({
             <div className="cc-list-item"><strong>Strategy next move</strong><p>{nextAction}</p></div>
             <div className="cc-list-item"><strong>Report package</strong><p>{report ? 'Leadership output package is available now.' : 'Executive report engine ready to build.'}</p></div>
           </div>
-          <div className="cc-card-footer-actions">
-            <Button onClick={() => onTab('strategy')}><BarChart3 size={15} /> Open Strategy</Button>
-            <Button onClick={() => onTab('report')}><FileText size={15} /> Open Executive Report</Button>
+          <div className="cc-static-pills">
+            <span><BarChart3 size={15} /> Strategy available</span>
+            <span><FileText size={15} /> Executive report available</span>
           </div>
         </Card>
       </div>

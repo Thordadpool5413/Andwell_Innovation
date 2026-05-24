@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Bot, FileText, Gauge, Library, Map, UploadCloud } from 'lucide-react';
+import { BarChart3, Bot, FileText, Gauge, Library, Map, UploadCloud } from 'lucide-react';
 import type { TabId } from './model';
 
 export const commandCenterTabs: Array<{ id: TabId; label: string; help: string; icon: typeof Gauge }> = [
@@ -9,6 +9,5 @@ export const commandCenterTabs: Array<{ id: TabId; label: string; help: string; 
   { id: 'library', label: 'Intelligence Library', help: 'Built Outputs', icon: Library },
   { id: 'strategy', label: 'Strategy', help: 'Growth plays', icon: BarChart3 },
   { id: 'coach', label: 'AI Coach', help: 'Ask the system', icon: Bot },
-  { id: 'report', label: 'Executive Report', help: 'Leadership output', icon: FileText },
-  { id: 'system', label: 'System Health', help: 'Diagnostics', icon: Activity }
+  { id: 'report', label: 'Executive Report', help: 'Leadership output', icon: FileText }
 ];

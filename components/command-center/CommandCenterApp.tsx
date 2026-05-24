@@ -14,7 +14,7 @@ import { StrategyScreenView } from './screens/StrategyScreen';
 import { CoachScreenView } from './screens/CoachScreen';
 import { ReportScreenView } from './screens/ReportScreen';
 import { SystemScreenView } from './screens/SystemScreen';
-import { currentNextAction, parseSourceInput, scanProgressPercent, toReviewable } from './helpers';
+import { currentNextAction, parseSourceInput, sanitizeUserFacingError, scanProgressPercent, toReviewable } from './helpers';
 import { buildAdvantageMatrix, buildGrowthMap, type AdvantageMatrix, type GrowthMap } from '../../lib/intelligence-views';
 
 const initialState: CommandCenterState = {
@@ -195,7 +195,7 @@ export default function CommandCenterApp() {
       setActiveTab('strategy');
     } catch (error) {
       setState((current) => ({ ...current, scanStatus: 'failed' }));
-      setScanMessage(error instanceof Error ? error.message : 'The AI build could not be completed.');
+      setScanMessage(sanitizeUserFacingError(error instanceof Error ? error.message : 'The AI build could not be completed.'));
     } finally {
       setScanBusy(false);
     }
@@ -224,16 +224,13 @@ export default function CommandCenterApp() {
     <AppShell
       activeTab={activeTab}
       mobileOpen={mobileOpen}
-      approvedCount={approvedItems.length}
-      reportCount={state.reports.length}
-      serviceHealth={state.serviceHealth}
       onClose={() => setMobileOpen(false)}
       onOpen={() => setMobileOpen(true)}
       onChange={setActiveTab}
       onRefresh={() => void loadWorkspace()}
     >
       {state.status === 'loading' ? <LoadingState title="Loading command center" body="Reading reports, catalog, source history, and runtime status." /> : null}
-      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} nextAction={nextAction} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} onTab={setActiveTab} matrix={matrix} growthMap={growthMap} scanPercent={scanPercent} /> : null}
+      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} nextAction={nextAction} matrix={matrix} growthMap={growthMap} scanPercent={scanPercent} /> : null}
       {activeTab === 'sources' ? <BuildIntelligenceScreen state={state} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} scanPercent={scanPercent} /> : null}
       {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} /> : null}
       {activeTab === 'map' ? <GrowthMapScreenView growthMap={growthMap} /> : null}

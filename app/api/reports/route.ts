@@ -36,8 +36,10 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
+        ok: false,
+        route: '/api/reports',
         error: 'Reports service temporarily unavailable.',
-        details: error instanceof Error ? error.message : 'Unknown reports route failure'
+        checkedAt: new Date().toISOString()
       },
       { status: 500 }
     );

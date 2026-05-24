@@ -143,6 +143,25 @@ button { -webkit-tap-highlight-color: transparent; }
 .cc-topbar h1 { margin: 3px 0 0; font-size: 32px; line-height: 1.02; letter-spacing: 0; }
 .cc-topbar span { display: block; margin-top: 4px; color: #475569; font-size: 13px; font-weight: 600; }
 .cc-topbar-actions, .cc-action-row, .cc-card-action { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cc-static-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.cc-static-pills span {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid #d2ddef;
+  border-radius: 999px;
+  color: #334155;
+  background: #f7faff;
+  font-size: 12px;
+  font-weight: 800;
+}
 
 .cc-stack { display: grid; gap: var(--cc-space-4); }
 .cc-hero-panel {
@@ -980,6 +999,8 @@ button { -webkit-tap-highlight-color: transparent; }
   .cc-topbar { align-items: flex-start; flex-direction: column; }
   .cc-topbar h1 { font-size: 25px; }
   .cc-topbar-actions { width: 100%; justify-content: flex-start; }
+  .cc-static-pills { flex-direction: column; }
+  .cc-static-pills span { width: 100%; justify-content: center; border-radius: 10px; }
   .cc-hero-panel {
     padding: 22px;
     overflow: hidden;

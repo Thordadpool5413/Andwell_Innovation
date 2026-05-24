@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CheckCircle2, Database, RefreshCcw, UploadCloud } from 'lucide-react';
 import type { CommandCenterState } from '../model';
+import { userCopy } from '../copy';
 import { parseSourceInput, sourcePreview, compactUrl } from '../helpers';
 import { Badge, Button, Card, EmptyState, Notice, Progress } from '../ui';
 
@@ -38,7 +39,7 @@ export function BuildIntelligenceScreen({
             </Button>
             <Button onClick={() => setSourceText('')}>Clear</Button>
           </div>
-          {scanMessage ? <Notice title={scanBusy ? 'Intelligence build running' : 'Build status'} body={scanMessage} tone={scanBusy ? 'blue' : 'amber'} /> : null}
+          {scanMessage ? <Notice title={scanBusy ? 'Intelligence build running' : userCopy.build.processingUpdateTitle} body={scanMessage} tone={scanBusy ? 'blue' : 'amber'} /> : null}
           {!scanMessage && invalidCount ? <Notice title="Some sources need attention" body={`${invalidCount} entr${invalidCount === 1 ? 'y is' : 'ies are'} not a valid public website URL and will be skipped.`} tone="amber" /> : null}
         </Card>
 

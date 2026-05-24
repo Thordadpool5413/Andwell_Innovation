@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import type { Collection } from 'mongodb';
 import { getMongoDb, isMongoConfigured } from './mongodb';
@@ -38,10 +39,13 @@ function cleanEnvValue(value?: string) {
   return value?.trim().replace(/^['"]|['"]$/g, '');
 }
 
-const dataDir = cleanEnvValue(process.env.CIH_DATA_DIR) || path.join(process.cwd(), '.data');
-const storeFile = cleanEnvValue(process.env.CIH_STORE_FILE) || path.join(dataDir, 'competitive-intelligence-hub.json');
+const configuredDataDir = cleanEnvValue(process.env.CIH_DATA_DIR) || '';
+const configuredStoreFile = cleanEnvValue(process.env.CIH_STORE_FILE) || '';
 let mongoUnavailable = false;
 let supabaseUnavailable = false;
+let resolvedStoreFile: string | null = null;
+let jsonUnavailable = false;
+let memoryStore: HubStore | null = null;
 
 const emptyStore = (): HubStore => ({
   version: 4,
@@ -53,8 +57,32 @@ const emptyStore = (): HubStore => ({
   catalogOverrides: []
 });
 
-async function ensureDataDir() {
-  await mkdir(dataDir, { recursive: true });
+function candidateStoreFiles() {
+  const candidates: string[] = [];
+  if (configuredStoreFile) candidates.push(configuredStoreFile);
+  if (configuredDataDir) candidates.push(path.join(configuredDataDir, 'competitive-intelligence-hub.json'));
+  candidates.push(path.join(process.cwd(), '.data', 'competitive-intelligence-hub.json'));
+  candidates.push(path.join(os.tmpdir(), 'andwell-intelligence', 'competitive-intelligence-hub.json'));
+  return [...new Set(candidates)];
+}
+
+async function resolveStoreFile() {
+  if (resolvedStoreFile) return resolvedStoreFile;
+  const candidates = candidateStoreFiles();
+  for (const candidate of candidates) {
+    try {
+      const dir = path.dirname(candidate);
+      await mkdir(dir, { recursive: true });
+      const probe = path.join(dir, '.write-probe');
+      await writeFile(probe, `${Date.now()}`, 'utf8');
+      resolvedStoreFile = candidate;
+      return candidate;
+    } catch {
+      // try next candidate
+    }
+  }
+  jsonUnavailable = true;
+  throw new Error('Local persistence directory is not writable.');
 }
 
 async function collection<T extends object>(name: string): Promise<Collection<T>> {
@@ -114,7 +142,11 @@ async function supabaseReadStore(): Promise<HubStore> {
 }
 
 async function jsonReadStore(): Promise<HubStore> {
-  await ensureDataDir();
+  if (jsonUnavailable) {
+    if (!memoryStore) memoryStore = emptyStore();
+    return { ...memoryStore };
+  }
+  const storeFile = await resolveStoreFile();
   try {
     const raw = await readFile(storeFile, 'utf8');
     const parsed = JSON.parse(raw) as Partial<HubStore>;
@@ -135,9 +167,19 @@ async function jsonReadStore(): Promise<HubStore> {
 }
 
 async function jsonWriteStore(store: HubStore) {
-  await ensureDataDir();
+  if (jsonUnavailable) {
+    memoryStore = { ...store, updatedAt: new Date().toISOString() };
+    return memoryStore;
+  }
+  const storeFile = await resolveStoreFile();
   const next = { ...store, updatedAt: new Date().toISOString() };
-  await writeFile(storeFile, JSON.stringify(next, null, 2), 'utf8');
+  try {
+    await writeFile(storeFile, JSON.stringify(next, null, 2), 'utf8');
+  } catch {
+    jsonUnavailable = true;
+    memoryStore = next;
+    return memoryStore;
+  }
   return next;
 }
 

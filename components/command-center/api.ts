@@ -1,5 +1,6 @@
 import type { CompetitorInput, IntelligenceReport } from '../../lib/types';
 import type { AnalyzeHealth, AskResponse, CatalogItem, ReportSummary, RuntimeInfo } from './model';
+import { sanitizeUserFacingError } from './helpers';
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
@@ -42,21 +43,21 @@ async function apiFetch<T>(url: string, options: RequestOptions = {}): Promise<T
 
   if (!contentType.includes('application/json')) {
     const preview = text.trim().slice(0, 160);
-    throw new ApiError(`The server returned ${response.status} ${response.statusText || ''} but not JSON. Preview: ${preview || 'empty response'}`, response.status);
+    throw new ApiError(sanitizeUserFacingError(`The server returned ${response.status} ${response.statusText || ''} but not JSON. Preview: ${preview || 'empty response'}`), response.status);
   }
 
   let payload: unknown;
   try {
     payload = text ? JSON.parse(text) : {};
   } catch {
-    throw new ApiError(`The server returned malformed JSON from ${url}.`, response.status);
+    throw new ApiError(sanitizeUserFacingError(`The server returned malformed JSON from ${url}.`), response.status);
   }
 
   if (!response.ok) {
     const message = typeof payload === 'object' && payload && 'error' in payload
       ? String((payload as { error?: unknown }).error)
       : `Request failed with status ${response.status}.`;
-    throw new ApiError(message, response.status);
+    throw new ApiError(sanitizeUserFacingError(message), response.status);
   }
 
   return payload as T;

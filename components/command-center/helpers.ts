@@ -1,6 +1,7 @@
 import type { CompetitorInput, IntelligenceReport } from '../../lib/types';
 import { validatePublicHttpUrl } from '../../lib/url-safety';
 import type { ReviewableFinding, SourcePreviewItem } from './model';
+import { userCopy } from './copy';
 
 export function parseSourceInput(value: string): CompetitorInput[] {
   return sourcePreview(value)
@@ -106,4 +107,20 @@ export function currentNextAction(hasReport: boolean) {
 export function scanProgressPercent(done = 0, total = 0) {
   if (!total) return 0;
   return Math.round((done / total) * 100);
+}
+
+export function sanitizeUserFacingError(message?: string) {
+  const raw = (message || '').trim();
+  if (!raw) return userCopy.build.unavailable;
+  const lower = raw.toLowerCase();
+  if (lower.includes('enoent') || lower.includes('/var/task') || lower.includes('mkdir') || lower.includes('.data')) {
+    return userCopy.build.storageTemporary;
+  }
+  if (lower.includes('not json') || lower.includes('preview:') || lower.includes('gateway') || lower.includes('timeout')) {
+    return userCopy.build.delayed;
+  }
+  if (lower.includes('500') || lower.includes('503') || lower.includes('504')) {
+    return userCopy.build.unavailable;
+  }
+  return raw.replace(/\/var\/task\/\.data/gi, 'storage path');
 }
