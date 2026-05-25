@@ -90,10 +90,8 @@ export function HomeScreen({
       <div className="cc-dashboard-grid cc-dashboard-primary">
         <Card title={userCopy.home.latestPackageTitle} eyebrow="Primary workflow">
           <div className="cc-next-action">
-            <div>
-              <strong>Build Intelligence in the Build Intelligence tab</strong>
-              <p>{nextAction}</p>
-            </div>
+            <strong>Workflow command center</strong>
+            <p>{nextAction}</p>
           </div>
           <Notice
             title={userCopy.home.processingLocationNoticeTitle}

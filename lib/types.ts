@@ -303,7 +303,7 @@ export type RecommendedAction = {
   id: string;
   label: string;
   detail: string;
-  target: 'sources' | 'review' | 'library' | 'strategy' | 'coach' | 'report' | 'system';
+  target: 'sources' | 'library' | 'strategy' | 'coach' | 'report';
   priority: 'High' | 'Medium' | 'Low';
 };
 

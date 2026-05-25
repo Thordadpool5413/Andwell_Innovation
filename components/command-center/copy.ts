@@ -1,7 +1,7 @@
 export const userCopy = {
   home: {
-    processingLocationNoticeTitle: 'Operational processing lives in Build Intelligence',
-    processingLocationNoticeBody: 'Home is a strategic overview. Source entry and processing actions are intentionally separated into the dedicated build workspace.',
+    processingLocationNoticeTitle: 'Build actions are in Build Intelligence',
+    processingLocationNoticeBody: 'Use Build Intelligence for source entry and package generation. Home stays focused on strategy and output previews.',
     latestPackageTitle: 'Latest intelligence package',
     matrixFallbackCapabilities: 'Capabilities are ready for comparison after source processing.',
     matrixFallbackCompetitors: 'Competitor comparisons appear after the next intelligence build.',

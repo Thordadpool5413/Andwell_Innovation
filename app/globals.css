@@ -398,21 +398,12 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .cc-next-action {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 14px;
+  gap: 8px;
   align-items: start;
   margin-bottom: 16px;
 }
-.cc-next-action > svg {
-  height: 44px;
-  width: 44px;
-  padding: 10px;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--cc-teal);
-}
-.cc-next-action strong { display: block; font-size: 21px; line-height: 1.25; }
-.cc-next-action p { margin: 7px 0 0; color: var(--cc-muted); line-height: 1.55; }
+.cc-next-action strong { display: block; font-size: 30px; line-height: 1.12; max-width: 22ch; }
+.cc-next-action p { margin: 0; color: var(--cc-muted); line-height: 1.55; max-width: 64ch; }
 .cc-readiness-panel { display: grid; gap: 12px; margin-bottom: 14px; }
 .cc-readiness-panel p { margin: 0; color: var(--cc-muted); line-height: 1.55; }
 .cc-priority-list { display: grid; gap: 10px; }
