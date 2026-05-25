@@ -10,6 +10,7 @@ The app keeps the visible command center wired to real Next.js API routes. Supab
 - Public competitor source intake wired to `/api/analyze`
 - Asynchronous scan job flow (`/api/analyze` start + `/api/analyze/status` polling) to avoid gateway timeouts
 - Source review, claim scrubbing, service-line mapping, and safe-language generation
+- Full mockup-fidelity product surfaces for Advantage Matrix, Growth Map, Intelligence Library, Strategy, AI Coach, and Executive Report
 - Intelligence library powered by stored reports and built outputs
 - AI Intelligence Coach powered by `/api/ask` and stored evidence
 - Executive report preview with strategy, guardrails, and print support
@@ -108,7 +109,7 @@ Deployment fingerprint:
 /api/version
 ```
 
-The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-mockup-fidelity-home-build"`. If the live app does not show the executive Home canvas with the read-only operational cockpit, the deployment is not serving this build.
+The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-full-app-mockup-completion"`. If the live app does not show the executive Home canvas, full Advantage Matrix workspace, Growth Map workspace, Strategy playbook, Coach, and leadership report surfaces, the deployment is not serving this build.
 
 ## Safety Rule
 
