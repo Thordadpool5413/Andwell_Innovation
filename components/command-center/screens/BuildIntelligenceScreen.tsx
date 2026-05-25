@@ -27,40 +27,122 @@ export function BuildIntelligenceScreen({
   const preview = sourcePreview(sourceText);
   const invalidCount = preview.filter((item) => !item.valid).length;
   const report = state.currentReport;
+  const status = state.scanStatus || (report ? 'completed' : null);
+  const displayPercent = status === 'completed' ? 100 : scanPercent;
+  const pipeline = [
+    'Read Sources',
+    'Extract Evidence',
+    'Scrub Claims',
+    'Compare Capabilities',
+    'Map Opportunity',
+    'Generate Strategy',
+    'Coach Field Teams',
+    'Prepare Report'
+  ];
 
   return (
-    <div className="cc-stack">
-      <div className="cc-two-col">
-        <Card title="Build intelligence from sources" eyebrow="Source intake" action={<Badge tone={parsed.length ? 'blue' : 'slate'}>{parsed.length} queued</Badge>}>
-          <label className="cc-label" htmlFor="source-text">Competitor websites</label>
-          <textarea id="source-text" className="cc-textarea" value={sourceText} onChange={(event) => setSourceText(event.target.value)} placeholder="https://competitor.org/services&#10;https://another-provider.org/home-health" />
-          <div className="cc-action-row">
-            <Button variant="primary" disabled={scanBusy || !parsed.length} onClick={onScan}>
-              {scanBusy ? <RefreshCcw size={16} className="cc-spin" /> : <UploadCloud size={16} />} {scanBusy ? 'Building intelligence' : 'Build Intelligence'}
-            </Button>
-            <Button onClick={() => setSourceText('')}>Clear</Button>
-          </div>
-          {scanMessage ? <Notice title={scanBusy ? 'Intelligence build running' : userCopy.build.processingUpdateTitle} body={scanMessage} tone={scanBusy ? 'blue' : 'amber'} /> : null}
-          {!scanMessage && invalidCount ? <Notice title="Some sources need attention" body={`${invalidCount} entr${invalidCount === 1 ? 'y is' : 'ies are'} not a valid public website URL and will be skipped.`} tone="amber" /> : null}
-        </Card>
+    <div className="cc-build-page">
+      <section className="cc-build-command">
+        <div className="cc-build-intake">
+          <p className="cc-section-label">Source intake</p>
+          <h2>Build the next Andwell intelligence package.</h2>
+          <p>
+            Paste public competitor websites. The system validates URLs, reads public pages, scrubs unsupported
+            claims, and creates connected outputs for matrix, map, strategy, coaching, and leadership reporting.
+          </p>
 
-        <Card title="What the intelligence engine builds" action={<Badge tone="green">{userCopy.build.pipelineReady}</Badge>}>
-          <div className="cc-step-list">
-            {['Reading public sources', 'Extracting service evidence', 'Scrubbing unsupported claims', 'Mapping capability comparison', 'Mapping market opportunity', 'Building field-safe language', 'Preparing strategy, coach, and executive outputs'].map((item, index) => (
-              <div key={item} className="cc-step">
-                <span>{index + 1}</span>
-                <strong>{item}</strong>
-              </div>
-            ))}
-          </div>
-          {state.scanStatus ? <ScanLifecycleRail status={state.scanStatus} percent={scanPercent} warnings={state.scanWarnings || []} /> : null}
-          <Notice
-            title="Output intelligence active"
-            body="Source intake builds the Advantage Matrix, Growth Map, Strategy plays, field coaching language, and leadership-ready report in one run."
-            tone="green"
+          <label className="cc-label" htmlFor="source-text">Public competitor websites</label>
+          <textarea
+            id="source-text"
+            className="cc-textarea cc-build-textarea"
+            value={sourceText}
+            onChange={(event) => setSourceText(event.target.value)}
+            placeholder="https://competitor.org/services&#10;https://another-provider.org/home-health"
           />
-        </Card>
-      </div>
+
+          <div className="cc-build-actions">
+            <Button variant="primary" disabled={scanBusy || !parsed.length} onClick={onScan}>
+              {scanBusy ? <RefreshCcw size={16} className="cc-spin" /> : <UploadCloud size={16} />}
+              {scanBusy ? 'Building Intelligence Package' : 'Build Intelligence Package'}
+            </Button>
+            <Button onClick={() => setSourceText('')}>Clear Sources</Button>
+            <span>{parsed.length} source{parsed.length === 1 ? '' : 's'} selected</span>
+          </div>
+
+          {scanMessage ? (
+            <Notice
+              title={scanBusy ? 'Intelligence build running' : userCopy.build.processingUpdateTitle}
+              body={scanMessage}
+              tone={scanBusy ? 'blue' : status === 'failed' ? 'red' : 'green'}
+            />
+          ) : null}
+          {!scanMessage && invalidCount ? (
+            <Notice
+              title="Some sources need a public website address"
+              body={`${invalidCount} entr${invalidCount === 1 ? 'y needs' : 'ies need'} a complete public URL before the system can process it.`}
+              tone="amber"
+            />
+          ) : null}
+        </div>
+
+        <aside className="cc-build-cockpit" aria-label="Build intelligence processing cockpit">
+          <div className="cc-cockpit-head">
+            <span>Build Intelligence</span>
+            <h2>Operational Cockpit</h2>
+            <p>Source input, package status, and processing pipeline.</p>
+            <em><CheckCircle2 size={14} /> {status === 'completed' ? 'Analysis Complete' : scanBusy ? 'Analysis Running' : 'Ready'}</em>
+          </div>
+
+          <section className="cc-cockpit-panel">
+            <div className="cc-cockpit-panel-title">
+              <span>Source Input</span>
+              <strong>{parsed.length || report?.competitorsAnalyzed || 0} websites</strong>
+            </div>
+            <div className="cc-source-chips cc-build-source-chips">
+              {(parsed.length ? parsed : report?.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url })) || []).slice(0, 6).map((source) => (
+                <span key={`${source.name || source.url}-${source.url}`}>{source.name || compactUrl(source.url)}</span>
+              ))}
+              {(parsed.length || report?.competitorsAnalyzed || 0) > 6 ? <span>+{(parsed.length || report?.competitorsAnalyzed || 0) - 6} more</span> : null}
+            </div>
+          </section>
+
+          <section className="cc-cockpit-row">
+            <span>Package Status</span>
+            <strong><CheckCircle2 size={15} /> {status === 'completed' ? 'Completed' : scanBusy ? 'Processing' : 'Ready'}</strong>
+            <small>{displayPercent}%</small>
+          </section>
+
+          <section className="cc-cockpit-panel">
+            <div className="cc-cockpit-panel-title">
+              <span>Processing Pipeline</span>
+            </div>
+            <Progress value={displayPercent} tone={status === 'failed' ? 'red' : status === 'timed_out' ? 'amber' : 'teal'} />
+            <div className="cc-cockpit-steps">
+              {pipeline.map((step, index) => {
+                const completed = status === 'completed' || displayPercent >= ((index + 1) / pipeline.length) * 100;
+                return (
+                  <div key={step}>
+                    <strong className={completed ? 'is-done' : ''}><CheckCircle2 size={15} /> {step}</strong>
+                    <span>{completed ? 'Completed' : scanBusy ? 'Queued' : 'Ready'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="cc-cockpit-panel">
+            <div className="cc-cockpit-panel-title">
+              <span>Package Details</span>
+            </div>
+            <dl className="cc-run-details">
+              <div><dt>Competitors</dt><dd>{report?.competitorsAnalyzed || parsed.length || 0}</dd></div>
+              <div><dt>Pages Reviewed</dt><dd>{report?.pagesReviewed || 'Pending build'}</dd></div>
+              <div><dt>Capabilities</dt><dd>{report?.serviceLinesMapped || 'Pending build'}</dd></div>
+              <div><dt>Evidence Points</dt><dd>{report ? report.allFindings.length + report.allSubserviceFindings.length : 'Pending build'}</dd></div>
+            </dl>
+          </section>
+        </aside>
+      </section>
 
       {report ? (
         <Card title="Intelligence package created" eyebrow="Build outcome" action={<Badge tone="green">Connected across app</Badge>}>
@@ -78,7 +160,7 @@ export function BuildIntelligenceScreen({
         </Card>
       ) : null}
 
-      <Card title="Queued sources" action={<Badge tone={parsed.length ? 'blue' : 'slate'}>{preview.length} entered</Badge>}>
+      <Card title="Source validation" action={<Badge tone={preview.length ? 'blue' : 'slate'}>{preview.length} entered</Badge>}>
         {preview.length ? (
           <div className="cc-source-grid">
             {preview.map((competitor) => (
@@ -93,8 +175,9 @@ export function BuildIntelligenceScreen({
           <EmptyState title="Ready for source intelligence" body="Paste up to 25 public competitor websites. The system protects processing by blocking private, local, and internal network addresses." />
         )}
       </Card>
+
       {state.currentReport?.sourceHealth?.length ? (
-        <Card title="Latest build source health" action={<Badge tone="blue">{state.currentReport.sourceHealth.length} checked</Badge>}>
+        <Card title="Latest package source health" action={<Badge tone="blue">{state.currentReport.sourceHealth.length} checked</Badge>}>
           <div className="cc-source-grid">
             {state.currentReport.sourceHealth.map((source, index) => (
               <div key={`${source.input}-${index}`} className={`cc-source-card ${source.status === 'crawled' || source.status === 'accepted' ? 'valid' : 'invalid'}`}>
@@ -110,46 +193,6 @@ export function BuildIntelligenceScreen({
             ))}
           </div>
         </Card>
-      ) : null}
-    </div>
-  );
-}
-
-function ScanLifecycleRail({
-  status,
-  percent,
-  warnings
-}: {
-  status: NonNullable<CommandCenterState['scanStatus']>;
-  percent: number;
-  warnings: string[];
-}) {
-  const steps = [
-    'Reading public sources',
-    'Extracting service evidence',
-    'Scrubbing unsupported claims',
-    'Mapping capability comparison',
-    'Mapping market opportunity',
-    'Generating strategy and coaching',
-    'Preparing executive output'
-  ];
-  return (
-    <div className="cc-scan-rail">
-      <div className="cc-scan-rail-head">
-        <strong>{status === 'completed' ? 'Intelligence package ready' : status === 'timed_out' ? 'Partial package created' : status === 'failed' ? 'Build needs attention' : 'Building intelligence package'}</strong>
-        <span>{percent}% complete</span>
-      </div>
-      <Progress value={percent} tone={status === 'failed' ? 'red' : status === 'timed_out' ? 'amber' : 'teal'} />
-      <div className="cc-step-list compact">
-        {steps.map((item, index) => (
-          <div key={item} className="cc-step">
-            <span>{index + 1}</span>
-            <strong>{item}</strong>
-          </div>
-        ))}
-      </div>
-      {warnings.length ? (
-        <Notice title="Source processing completed with safeguards" body={warnings[0]} tone="amber" />
       ) : null}
     </div>
   );

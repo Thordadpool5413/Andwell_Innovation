@@ -108,7 +108,7 @@ Deployment fingerprint:
 /api/version
 ```
 
-The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-visual-dataflow-recovery"`. If the live app still shows older labels such as `Competitor Intake`, `Run Competitive Scan`, or `System Check`, the deployment is serving the previous `Competitive-Intelligence-Hub` app instead of this repository.
+The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-mockup-fidelity-home-build"`. If the live app does not show the executive Home canvas with the read-only operational cockpit, the deployment is not serving this build.
 
 ## Safety Rule
 

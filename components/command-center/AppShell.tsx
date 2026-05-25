@@ -75,9 +75,10 @@ function Sidebar({
     <>
       <aside className={`cc-sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="cc-sidebar-head">
+          <div className="cc-brand-mark" aria-hidden="true">A</div>
           <div>
-            <strong>Andwell</strong>
-            <span>Innovation Command Center</span>
+            <strong>ANDWELL</strong>
+            <span>Intelligence Engine</span>
           </div>
           <button type="button" className="cc-sidebar-close" onClick={onClose} aria-label="Close navigation">
             <PanelLeftClose size={18} />
@@ -97,6 +98,11 @@ function Sidebar({
             );
           })}
         </nav>
+        <div className="cc-sidebar-foot">
+          <strong>Andwell Health Partners</strong>
+          <span>Value-based care. Real growth.</span>
+          <small>Data governed. Privacy protected.</small>
+        </div>
       </aside>
       {mobileOpen ? <button className="cc-scrim" type="button" onClick={onClose} aria-label="Close navigation" /> : null}
     </>
