@@ -10,11 +10,11 @@ export function ReportScreenView({ report, approvedItems, growthMap, matrix }: {
   if (!report) return <EmptyState title="Executive report ready" body="Build intelligence from public competitor sources to generate a leadership-ready output package." />;
   return (
     <div className="cc-stack">
-      <Card title="Executive report" eyebrow="AI-built leadership output" action={<Button variant="primary" onClick={() => window.print()}><FileText size={16} /> Print Report</Button>}>
+      <Card title="Executive report" eyebrow="Leadership output" action={<Button variant="primary" onClick={() => window.print()}><FileText size={16} /> Print Report</Button>}>
         <div className="cc-metric-grid">
-          <Metric label="Report status" value="Built" detail="AI-generated from stored evidence" tone="green" />
+          <Metric label="Report status" value="Built" detail="Generated from stored evidence" tone="green" />
           <Metric label="Scrubbed outputs" value={approvedItems.length} detail="Safe language items" tone="green" />
-          <Metric label="Public pages" value={report.pagesReviewed} detail="Reviewed by crawler and AI rules" tone="teal" />
+          <Metric label="Public pages" value={report.pagesReviewed} detail="Reviewed by evidence rules" tone="teal" />
           <Metric label="Guardrails" value={report.aiGovernance?.guardedUseCount ?? 0} detail="Claims kept cautious" tone="amber" />
         </div>
       </Card>

@@ -3,7 +3,7 @@
 import { AlertTriangle, CheckCircle2, Database, RefreshCcw, UploadCloud } from 'lucide-react';
 import type { CommandCenterState } from '../model';
 import { userCopy } from '../copy';
-import { parseSourceInput, sourcePreview, compactUrl } from '../helpers';
+import { parseSourceInput, sourcePreview, compactUrl, sanitizeUserFacingError } from '../helpers';
 import { Badge, Button, Card, EmptyState, Notice, Progress } from '../ui';
 
 export function BuildIntelligenceScreen({
@@ -26,6 +26,7 @@ export function BuildIntelligenceScreen({
   const parsed = parseSourceInput(sourceText);
   const preview = sourcePreview(sourceText);
   const invalidCount = preview.filter((item) => !item.valid).length;
+  const report = state.currentReport;
 
   return (
     <div className="cc-stack">
@@ -61,6 +62,22 @@ export function BuildIntelligenceScreen({
         </Card>
       </div>
 
+      {report ? (
+        <Card title="Intelligence package created" eyebrow="Build outcome" action={<Badge tone="green">Connected across app</Badge>}>
+          <div className="cc-build-complete-grid">
+            <article><strong>{report.competitorsAnalyzed}</strong><span>Competitors processed</span></article>
+            <article><strong>{report.pagesReviewed}</strong><span>Pages reviewed</span></article>
+            <article><strong>{report.serviceLinesMapped}</strong><span>Capabilities mapped</span></article>
+            <article><strong>{report.allFindings.length + report.allSubserviceFindings.length}</strong><span>Evidence points</span></article>
+          </div>
+          <Notice
+            title="Outputs are available"
+            body="The same intelligence package now feeds the Advantage Matrix, Growth Map, Library, Strategy, Coach, and Executive Report."
+            tone="green"
+          />
+        </Card>
+      ) : null}
+
       <Card title="Queued sources" action={<Badge tone={parsed.length ? 'blue' : 'slate'}>{preview.length} entered</Badge>}>
         {preview.length ? (
           <div className="cc-source-grid">
@@ -87,7 +104,7 @@ export function BuildIntelligenceScreen({
                   <Badge tone={source.status === 'crawled' ? 'green' : source.status === 'warning' ? 'amber' : source.status === 'duplicate' ? 'blue' : 'red'}>{source.status}</Badge>
                 </div>
                 <span>{source.reason}</span>
-                {source.error ? <small>{source.error}</small> : null}
+                {source.error ? <small>{sanitizeUserFacingError(source.error)}</small> : null}
                 <Progress value={source.qualityScore} tone={source.qualityScore > 70 ? 'green' : source.qualityScore > 35 ? 'amber' : 'red'} />
               </div>
             ))}

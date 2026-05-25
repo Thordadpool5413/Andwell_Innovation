@@ -42,8 +42,7 @@ async function apiFetch<T>(url: string, options: RequestOptions = {}): Promise<T
   const text = await response.text();
 
   if (!contentType.includes('application/json')) {
-    const preview = text.trim().slice(0, 160);
-    throw new ApiError(sanitizeUserFacingError(`The server returned ${response.status} ${response.statusText || ''} but not JSON. Preview: ${preview || 'empty response'}`), response.status);
+    throw new ApiError(sanitizeUserFacingError(`service response unavailable ${response.status}`), response.status);
   }
 
   let payload: unknown;

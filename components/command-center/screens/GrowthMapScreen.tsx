@@ -11,10 +11,10 @@ export function GrowthMapScreenView({ growthMap }: { growthMap: GrowthMap }) {
   return (
     <div className="cc-stack">
       <div className="cc-metric-grid">
-        <Metric label="Growth areas identified" value={growthMap.summary.topGrowthAreas.length || 'Ready'} detail="Ranked opportunities" tone="green" />
-        <Metric label="Saturated areas" value={growthMap.summary.saturatedAreas.length || 'Ready'} detail="Competitive density" tone="amber" />
-        <Metric label="Field focus zones" value={growthMap.summary.fieldFocusZones.length || 'Ready'} detail="Where to act next" tone="blue" />
-        <Metric label="Geographic evidence signals" value={growthMap.summary.geographicSignals || 'Ready'} detail="Census-backed location confidence" tone="slate" />
+        <Metric label="Growth areas identified" value={growthMap.summary.topGrowthAreas.length || 'Opportunity model'} detail="Ranked opportunities" tone="green" />
+        <Metric label="Saturated areas" value={growthMap.summary.saturatedAreas.length || 'Density model'} detail="Competitive density" tone="amber" />
+        <Metric label="Field focus zones" value={growthMap.summary.fieldFocusZones.length || 'Focus model'} detail="Where to act next" tone="blue" />
+        <Metric label="Geographic evidence signals" value={growthMap.summary.geographicSignals || 'Location model'} detail="Census-backed location confidence" tone="slate" />
       </div>
       <Card title="Growth Opportunity Map" eyebrow="Market Opportunity">
         <div className="cc-filter-row">

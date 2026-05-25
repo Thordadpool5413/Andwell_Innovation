@@ -25,7 +25,7 @@ export function LibraryScreenView({
 }) {
   return (
     <div className="cc-stack">
-      <Card title="AI-built intelligence" action={<Badge tone="green">{allApprovedCount} built</Badge>}>
+      <Card title="Built intelligence outputs" action={<Badge tone="green">{allApprovedCount} built</Badge>}>
         <div className="cc-search">
           <Search size={17} />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search competitor, service, evidence, or safe wording" />

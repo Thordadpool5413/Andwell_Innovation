@@ -32,6 +32,11 @@ export function AppShell({
         onChange={onChange}
       />
       <main className="cc-main">
+        {activeTab === 'dashboard' ? (
+          <button type="button" className="cc-dashboard-mobile-menu" onClick={onOpen} aria-label="Open navigation">
+            <Menu size={20} />
+          </button>
+        ) : null}
         {activeTab !== 'dashboard' ? (
           <header className="cc-topbar">
             <button type="button" className="cc-mobile-menu" onClick={onOpen} aria-label="Open navigation">

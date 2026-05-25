@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, askHub, deleteCompetitor, fetchAnalyzeHealth, fetchCatalog, fetchCompetitors, fetchReport, fetchReports, fetchRuntime, runAnalysis, type ScanLifecycleUpdate } from './api';
 import type { AskResponse, CommandCenterState, ServiceHealthItem, ServiceHealthKey, TabId } from './model';
-import { LoadingState } from './ui';
 import { AppShell } from './AppShell';
 import { HomeScreen } from './screens/HomeScreen';
 import { BuildIntelligenceScreen } from './screens/BuildIntelligenceScreen';
@@ -173,7 +172,7 @@ export default function CommandCenterApp() {
       return;
     }
     setScanBusy(true);
-    setScanMessage('AI is reviewing public evidence, scrubbing unsafe claims, connecting service lines, and building strategy outputs.');
+      setScanMessage('The intelligence engine is reading public evidence, scrubbing unsupported claims, connecting service lines, and building strategy outputs.');
     try {
       const report = await runAnalysis(competitors, 8, (update: ScanLifecycleUpdate) => {
         setState((current) => ({ ...current, scanJobId: update.jobId, scanStatus: update.status, scanProgress: update.progress, scanWarnings: update.warnings }));
@@ -190,11 +189,11 @@ export default function CommandCenterApp() {
         scanProgress: { done: competitors.length, total: competitors.length }
       }));
       const sourceIssues = report.sourceHealth?.filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length || 0;
-      setScanMessage(`AI build complete. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} analyzed, ${report.pagesReviewed} public page${report.pagesReviewed === 1 ? '' : 's'} reviewed, and ${sourceIssues} source issue${sourceIssues === 1 ? '' : 's'} handled.`);
+      setScanMessage(`Intelligence package created. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} processed, ${report.pagesReviewed} public page${report.pagesReviewed === 1 ? '' : 's'} reviewed, and ${sourceIssues} source safeguard${sourceIssues === 1 ? '' : 's'} handled.`);
       setActiveTab('strategy');
     } catch (error) {
       setState((current) => ({ ...current, scanStatus: 'failed' }));
-      setScanMessage(sanitizeUserFacingError(error instanceof Error ? error.message : 'The AI build could not be completed.'));
+      setScanMessage(sanitizeUserFacingError(error instanceof Error ? error.message : 'The intelligence build could not be completed.'));
     } finally {
       setScanBusy(false);
     }
@@ -213,7 +212,7 @@ export default function CommandCenterApp() {
       const response = await askHub(clean, state.currentReport?.id);
       setAskResponse(response);
     } catch (error) {
-      setAskResponse({ answer: error instanceof Error ? error.message : 'The AI coach could not answer this question.', confidence: 'Evidence limited', nextBestActions: [], evidence: [] });
+      setAskResponse({ answer: sanitizeUserFacingError(error instanceof Error ? error.message : 'The coach could not answer this question.'), confidence: 'Evidence limited', nextBestActions: [], evidence: [] });
     } finally {
       setAskBusy(false);
     }
@@ -228,8 +227,7 @@ export default function CommandCenterApp() {
       onChange={setActiveTab}
       onRefresh={() => void loadWorkspace()}
     >
-      {state.status === 'loading' ? <LoadingState title="Loading command center" body="Reading reports, catalog, source history, and runtime status." /> : null}
-      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} nextAction={nextAction} matrix={matrix} growthMap={growthMap} scanPercent={scanPercent} /> : null}
+      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} nextAction={nextAction} matrix={matrix} growthMap={growthMap} onBuild={() => setActiveTab('sources')} /> : null}
       {activeTab === 'sources' ? <BuildIntelligenceScreen state={state} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} scanPercent={scanPercent} /> : null}
       {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} /> : null}
       {activeTab === 'map' ? <GrowthMapScreenView growthMap={growthMap} /> : null}

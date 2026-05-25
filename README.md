@@ -1,18 +1,18 @@
 # Andwell Innovation Command Center
 
-Andwell Innovation Command Center is a Hostinger-ready Node.js app for public-website competitive intelligence, AI-scrubbed field language, growth strategy, and executive reporting.
+Andwell Innovation Command Center is a Hostinger-ready Node.js app for public-website competitive intelligence, evidence-scrubbed field language, growth strategy, and executive reporting.
 
 The app keeps the visible command center wired to real Next.js API routes. Supabase is the production source of truth when configured; MongoDB and local JSON remain fallback options for development and constrained hosting.
 
 ## What Is Included
 
-- Executive home page with the Andwell Innovation and Growth purpose, AI build status, source intake, and next recommended action
+- Executive home page with the Andwell Innovation and Growth purpose, read-only outcome previews, process model, and latest package snapshot
 - Public competitor source intake wired to `/api/analyze`
 - Asynchronous scan job flow (`/api/analyze` start + `/api/analyze/status` polling) to avoid gateway timeouts
-- AI source review, claim scrubbing, service-line mapping, and safe-language generation
-- Intelligence library powered by stored reports and AI-built outputs
+- Source review, claim scrubbing, service-line mapping, and safe-language generation
+- Intelligence library powered by stored reports and built outputs
 - AI Intelligence Coach powered by `/api/ask` and stored evidence
-- Executive report preview with AI-built strategy, guardrails, and print support
+- Executive report preview with strategy, guardrails, and print support
 - Server-side APIs for analysis, competitors, reports, reviews (compatibility), catalog, diagnostics, runtime, health, version, enrichment, and intelligence rebuild checks
 - Supabase production persistence, with MongoDB/local JSON fallback
 - Hostinger Node.js startup through `app.js`, which delegates to `server.js`
@@ -101,6 +101,14 @@ After deployment, check:
 ```
 
 The API routes should return JSON. If an API route returns HTML, the site is not running as the Node.js Next server.
+
+Deployment fingerprint:
+
+```bash
+/api/version
+```
+
+The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-visual-dataflow-recovery"`. If the live app still shows older labels such as `Competitor Intake`, `Run Competitive Scan`, or `System Check`, the deployment is serving the previous `Competitive-Intelligence-Hub` app instead of this repository.
 
 ## Safety Rule
 

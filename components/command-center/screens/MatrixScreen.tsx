@@ -12,10 +12,10 @@ export function MatrixScreenView({ matrix }: { matrix: AdvantageMatrix }) {
   return (
     <div className="cc-stack">
       <div className="cc-metric-grid">
-        <Metric label="Capabilities mapped" value={matrix.summary.capabilitiesMapped || 'Ready'} detail="Andwell baseline definitions" tone="blue" />
-        <Metric label="Competitors compared" value={matrix.summary.competitorsCompared || 'Ready'} detail="Source-derived comparison" tone="teal" />
-        <Metric label="Andwell advantages" value={matrix.summary.advantageSignals || 'Ready'} detail="Source-backed signals" tone="green" />
-        <Metric label="Healthcare source matches" value={matrix.summary.providerMatches || 'Ready'} detail="CMS/NPPES provider signals" tone="amber" />
+        <Metric label="Capabilities mapped" value={matrix.summary.capabilitiesMapped || 'Model loaded'} detail="Andwell baseline definitions" tone="blue" />
+        <Metric label="Competitors compared" value={matrix.summary.competitorsCompared || 'Awaiting package'} detail="Source-derived comparison" tone="teal" />
+        <Metric label="Andwell advantages" value={matrix.summary.advantageSignals || 'Evidence model'} detail="Source-backed signals" tone="green" />
+        <Metric label="Healthcare source matches" value={matrix.summary.providerMatches || 'Provider model'} detail="CMS/NPPES provider signals" tone="amber" />
       </div>
       <Card title="Andwell Advantage Matrix" eyebrow="Capability Comparison">
         <div className="cc-filter-row">
@@ -29,7 +29,7 @@ export function MatrixScreenView({ matrix }: { matrix: AdvantageMatrix }) {
               <td key={`${row.capability}-${cell.competitorName}`}><button type="button" className="cc-matrix-cell-btn" onClick={() => setSelected({ capability: row.capability, competitorName: cell.competitorName })}><Badge tone={cell.status === 'Confirmed match' ? 'green' : cell.status === 'Related capability' ? 'blue' : cell.status === 'Andwell advantage' ? 'teal' : 'amber'}>{cell.status}</Badge></button></td>
             ))}</tr>))}
           </tbody></table></div>
-        ) : <EmptyState title="Capability matrix ready to build" body="Enter public sources and build intelligence to generate a full Andwell baseline comparison." />}
+        ) : <EmptyState title="Capability comparison model loaded" body="Build Intelligence creates competitor columns, evidence labels, confidence levels, safe talk tracks, and strategic angles from public sources." />}
       </Card>
       {selectedCell ? (
         <Card title={`${selectedCell.capability} vs ${selectedCell.competitorName}`} eyebrow="Cell intelligence detail">
