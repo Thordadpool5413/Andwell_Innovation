@@ -14,6 +14,7 @@ import { CoachScreenView } from './screens/CoachScreen';
 import { ReportScreenView } from './screens/ReportScreen';
 import { parseSourceInput, sanitizeUserFacingError, scanProgressPercent, toReviewable } from './helpers';
 import { buildAdvantageMatrix, buildGrowthMap, type AdvantageMatrix, type GrowthMap } from '../../lib/intelligence-views';
+import { buildIntelligenceDisplayModel, type IntelligenceDisplayModel } from './intelligence-display';
 
 const initialState: CommandCenterState = {
   status: 'idle',
@@ -162,6 +163,7 @@ export default function CommandCenterApp() {
 
   const matrix = useMemo<AdvantageMatrix>(() => buildAdvantageMatrix(state.currentReport), [state.currentReport]);
   const growthMap = useMemo<GrowthMap>(() => buildGrowthMap(state.currentReport, matrix), [state.currentReport, matrix]);
+  const displayModel = useMemo<IntelligenceDisplayModel>(() => buildIntelligenceDisplayModel(state.currentReport, matrix, growthMap), [state.currentReport, matrix, growthMap]);
   const scanPercent = scanProgressPercent(state.scanProgress?.done || 0, state.scanProgress?.total || 0);
 
   async function handleScan() {
@@ -228,14 +230,14 @@ export default function CommandCenterApp() {
       onChange={setActiveTab}
       onRefresh={() => void loadWorkspace()}
     >
-      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} matrix={matrix} growthMap={growthMap} onBuild={() => setActiveTab('sources')} onNavigate={setActiveTab} /> : null}
+      {activeTab === 'dashboard' ? <HomeScreen display={displayModel} onBuild={() => setActiveTab('sources')} onNavigate={setActiveTab} /> : null}
       {activeTab === 'sources' ? <BuildIntelligenceScreen state={state} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} scanPercent={scanPercent} /> : null}
-      {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} hasReport={Boolean(state.currentReport)} /> : null}
-      {activeTab === 'map' ? <GrowthMapScreenView growthMap={growthMap} hasReport={Boolean(state.currentReport)} /> : null}
-      {activeTab === 'library' ? <LibraryScreenView approvedItems={filteredApproved} allApprovedCount={approvedItems.length} search={search} setSearch={setSearch} competitors={state.competitors} report={state.currentReport} onDelete={(url) => void handleDeleteCompetitor(url)} onBuild={() => setActiveTab('sources')} /> : null}
-      {activeTab === 'strategy' ? <StrategyScreenView report={state.currentReport} onBuild={() => setActiveTab('sources')} matrix={matrix} growthMap={growthMap} /> : null}
-      {activeTab === 'coach' ? <CoachScreenView report={state.currentReport} question={question} setQuestion={setQuestion} askBusy={askBusy} askResponse={askResponse} onAsk={() => void handleAsk()} growthMap={growthMap} matrix={matrix} /> : null}
-      {activeTab === 'report' ? <ReportScreenView report={state.currentReport} approvedItems={approvedItems} growthMap={growthMap} matrix={matrix} /> : null}
+      {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} display={displayModel} hasReport={Boolean(state.currentReport)} /> : null}
+      {activeTab === 'map' ? <GrowthMapScreenView display={displayModel} hasReport={Boolean(state.currentReport)} /> : null}
+      {activeTab === 'library' ? <LibraryScreenView approvedItems={filteredApproved} allApprovedCount={approvedItems.length} search={search} setSearch={setSearch} competitors={state.competitors} report={state.currentReport} display={displayModel} onDelete={(url) => void handleDeleteCompetitor(url)} onBuild={() => setActiveTab('sources')} /> : null}
+      {activeTab === 'strategy' ? <StrategyScreenView report={state.currentReport} onBuild={() => setActiveTab('sources')} matrix={matrix} growthMap={growthMap} display={displayModel} /> : null}
+      {activeTab === 'coach' ? <CoachScreenView report={state.currentReport} question={question} setQuestion={setQuestion} askBusy={askBusy} askResponse={askResponse} onAsk={() => void handleAsk()} growthMap={growthMap} matrix={matrix} display={displayModel} /> : null}
+      {activeTab === 'report' ? <ReportScreenView report={state.currentReport} approvedItems={approvedItems} growthMap={growthMap} matrix={matrix} display={displayModel} /> : null}
     </AppShell>
   );
 }

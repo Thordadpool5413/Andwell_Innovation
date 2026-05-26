@@ -13,42 +13,25 @@ import {
   ShieldCheck,
   Users
 } from 'lucide-react';
-import type { AdvantageMatrix, GrowthMap } from '../../../lib/intelligence-views';
-import type { CommandCenterState, ReviewableFinding, TabId } from '../model';
-import {
-  buildExecutiveSnapshot,
-  buildFieldGuidancePreview,
-  buildGrowthPreviewPoints,
-  buildMatrixPreviewRows,
-  buildPackageView
-} from '../display';
+import type { TabId } from '../model';
+import type { IntelligenceDisplayModel } from '../intelligence-display';
 import { Button, Notice, formatDate, number } from '../ui';
 
 export function HomeScreen({
-  state,
-  approvedItems,
-  matrix,
-  growthMap,
+  display,
   onBuild,
   onNavigate
 }: {
-  state: CommandCenterState;
-  approvedItems: ReviewableFinding[];
-  matrix: AdvantageMatrix;
-  growthMap: GrowthMap;
+  display: IntelligenceDisplayModel;
   onBuild: () => void;
   onNavigate: (tab: TabId) => void;
 }) {
-  const report = state.currentReport;
-  const hasReport = Boolean(report);
-  const packageView = buildPackageView(report, matrix);
-  const matrixRows = hasReport ? buildMatrixPreviewRows(report, matrix) : [];
-  const growthPoints = hasReport ? buildGrowthPreviewPoints(report, growthMap) : [];
-  const guidance = hasReport ? buildFieldGuidancePreview(report) : [];
-  const executive = buildExecutiveSnapshot(report);
-  const confidenceHigh = packageView.highConfidencePercent;
-  const confidenceMedium = packageView.mediumConfidencePercent;
-  const confidenceGuarded = Math.max(0, Math.min(100, 100 - confidenceHigh - confidenceMedium));
+  const hasReport = display.hasReport;
+  const confidenceGuarded = Math.max(0, Math.min(100, 100 - display.package.highConfidencePercent - display.package.mediumConfidencePercent));
+  const topCapabilities = display.capabilities.slice(0, 5);
+  const topTerritories = display.territories.slice(0, 5);
+  const fieldGuidance = display.fieldGuidance.slice(0, 3);
+  const evidenceDigest = display.evidenceDigest.slice(0, 4);
   const processRail = [
     { icon: FileText, title: 'Read sources', detail: 'Collect public competitor content' },
     { icon: Search, title: 'Extract evidence', detail: 'Identify services, proof, and positioning' },
@@ -68,7 +51,7 @@ export function HomeScreen({
             <p className="cc-home-morning">Good morning, Executive Team.</p>
             <h1>Turning public sources into trusted growth intelligence.</h1>
             <p>
-              We transform market noise into clear advantage so Andwell can grow high acuity community care,
+              We transform market evidence into clear advantage so Andwell can grow high acuity community care,
               value based partnerships, and field-ready strategy with confidence.
             </p>
             <div className="cc-home-actions">
@@ -79,18 +62,12 @@ export function HomeScreen({
           </div>
           <div className="cc-home-meta cc-home-meta-readonly">
             <span>Latest package</span>
-            <strong>{hasReport && report ? formatDate(report.generatedAt) : 'Build intelligence from public sources first.'}</strong>
+            <strong>{hasReport ? formatDate(display.package.generatedAt) : 'Build intelligence from public sources first.'}</strong>
           </div>
           <BuildingLineArt />
         </div>
 
-        {!hasReport ? (
-          <Notice
-            title="Evidence intelligence ready"
-            body="Build intelligence from public sources first."
-            tone="amber"
-          />
-        ) : null}
+        {!hasReport ? <Notice title="Evidence intelligence ready" body="Build intelligence from public sources first." tone="amber" /> : null}
 
         <section className="cc-process-card" aria-label="Our intelligence process">
           <p className="cc-section-label">Our intelligence process</p>
@@ -109,149 +86,92 @@ export function HomeScreen({
           </div>
         </section>
 
+        <section className="cc-home-intel-summary" aria-label="Source evidence summary">
+          <div>
+            <p className="cc-section-label">Evidence summary</p>
+            <h2>{hasReport ? 'Latest package intelligence' : 'Evidence package will appear here after the first build.'}</h2>
+          </div>
+          {hasReport ? (
+            <div className="cc-home-evidence-grid">
+              {evidenceDigest.map((item) => (
+                <article key={`home-evidence-${item.id}`}>
+                  <strong>{item.competitorName}</strong>
+                  <span>{item.serviceLine}</span>
+                  <p>{item.excerpt}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="cc-home-evidence-ready">The first intelligence package will show source excerpts, competitor signals, capability matches, field language, and leadership-ready next moves.</p>
+          )}
+        </section>
+
         <section className="cc-outcomes-panel" aria-label="Intelligence outcomes preview">
           <div className="cc-section-row">
             <p className="cc-section-label">Intelligence outcomes preview</p>
             <span className="cc-readonly-note">Read-only previews. Build Intelligence creates the package.</span>
           </div>
           <div className="cc-preview-grid cc-preview-grid-balanced">
-            <article className="cc-preview-card cc-preview-matrix">
-              <header>
-                <div>
-                  <h2>Advantage Matrix</h2>
-                  <span>Capability comparison</span>
-                </div>
-                <button type="button" onClick={() => onNavigate('matrix')}>Open <ArrowRight size={13} /></button>
-              </header>
+            <OutcomeCard title="Advantage Matrix" subtitle="Capability comparison" onOpen={() => onNavigate('matrix')}>
               {hasReport ? (
-                <>
-                  <table>
-                    <thead><tr><th>Service Line</th><th>Andwell</th><th>Market</th><th>Advantage</th></tr></thead>
-                    <tbody>
-                      {matrixRows.map((row) => (
-                        <tr key={row.serviceLine}>
-                          <td>{row.serviceLine}</td>
-                          <td>{row.andwellDepth}%</td>
-                          <td>{row.marketDepth}%</td>
-                          <td><span style={{ width: `${Math.min(88, row.advantage + 30)}%` }} />+{row.advantage}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <footer>
-                    <strong>{number(packageView.capabilities)} capabilities mapped</strong>
-                    <span>{number(matrix.summary.advantageSignals)} advantage signals</span>
-                  </footer>
-                </>
+                <div className="cc-home-mini-table">
+                  {topCapabilities.map((item) => (
+                    <div key={`home-cap-${item.capability}`}>
+                      <strong>{item.capability}</strong>
+                      <span>{number(item.evidenceCount)} evidence items</span>
+                      <em>{item.advantages} advantage signals</em>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <OutcomeReadyState
-                  icon={<Scale size={22} />}
-                  title="Capability comparison ready"
-                  body="The matrix will compare Andwell capabilities against public competitor evidence after the first build."
-                />
+                <OutcomeReadyState icon={<Scale size={22} />} title="Capability comparison ready" body="The matrix will compare Andwell capabilities against public competitor evidence." />
               )}
-            </article>
+            </OutcomeCard>
 
-            <article className="cc-preview-card cc-preview-map">
-              <header>
-                <div>
-                  <h2>Growth Map</h2>
-                  <span>Market opportunity</span>
-                </div>
-                <button type="button" onClick={() => onNavigate('map')}>Open <ArrowRight size={13} /></button>
-              </header>
+            <OutcomeCard title="Growth Map" subtitle="Market opportunity" onOpen={() => onNavigate('map')}>
               {hasReport ? (
-                <>
-                  <div className="cc-scatter" aria-label="Growth map preview">
-                    <span className="cc-axis y">Market attractiveness</span>
-                    <span className="cc-axis x">Andwell advantage</span>
-                    {growthPoints.map((point) => (
-                      <b
-                        key={`${point.label}-${point.x}-${point.y}`}
-                        className={`cc-dot cc-dot-${point.tone}`}
-                        style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                        title={point.label}
-                      >
-                        <em>{point.label}</em>
-                      </b>
-                    ))}
-                  </div>
-                  <footer>
-                    <strong>{number(growthMap.summary.fieldFocusZones.length)} field focus zones</strong>
-                    <span>{number(growthMap.summary.evidenceLimitedAreas.length)} evidence-limited areas</span>
-                  </footer>
-                </>
+                <div className="cc-home-territory-preview">
+                  {topTerritories.map((area) => (
+                    <article key={`home-area-${area.area}`}>
+                      <strong>{area.area}</strong>
+                      <span>{area.signal}</span>
+                      <ProgressBar value={area.scores.growth} />
+                    </article>
+                  ))}
+                </div>
               ) : (
-                <OutcomeReadyState
-                  icon={<Map size={22} />}
-                  title="Market opportunity ready"
-                  body="Growth areas, saturation signals, and field focus zones will populate from the completed source package."
-                />
+                <OutcomeReadyState icon={<Map size={22} />} title="Market opportunity ready" body="Growth areas, saturation signals, and field focus zones will populate from source evidence." />
               )}
-            </article>
+            </OutcomeCard>
 
-            <article className="cc-preview-card cc-preview-guidance">
-              <header>
-                <div>
-                  <h2>Field Guidance</h2>
-                  <span>Safe talk tracks</span>
-                </div>
-                <button type="button" onClick={() => onNavigate('strategy')}>Open <ArrowRight size={13} /></button>
-              </header>
+            <OutcomeCard title="Field Guidance" subtitle="Safe talk tracks" onOpen={() => onNavigate('strategy')}>
               {hasReport ? (
-                <>
-                  <div className="cc-field-preview-list">
-                    {guidance.map((item) => (
-                      <div key={item.title}>
-                        <MessageSquareText size={19} />
-                        <p><strong>{item.title}</strong><span>{item.detail}</span></p>
-                        <mark>{item.priority}</mark>
-                      </div>
-                    ))}
-                  </div>
-                  <footer>
-                    <strong>{number(packageView.safeLanguageItems || approvedItems.length)} field plays ready</strong>
-                    <span>{number(packageView.guardedPercent)}% guarded use</span>
-                  </footer>
-                </>
+                <div className="cc-field-preview-list">
+                  {fieldGuidance.map((item) => (
+                    <div key={`home-field-${item.id}`}>
+                      <MessageSquareText size={19} />
+                      <p><strong>{item.capability}</strong><span>{item.safeTalkTrack}</span></p>
+                      <mark>{item.priority}</mark>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <OutcomeReadyState
-                  icon={<MessageSquareText size={22} />}
-                  title="Field guidance ready"
-                  body="Safe referral language and what-not-to-say guardrails will appear after public evidence is processed."
-                />
+                <OutcomeReadyState icon={<MessageSquareText size={22} />} title="Field guidance ready" body="Safe referral language and what-not-to-say guardrails will appear after processing." />
               )}
-            </article>
+            </OutcomeCard>
 
-            <article className="cc-preview-card cc-preview-report">
-              <header>
-                <div>
-                  <h2>Executive Report</h2>
-                  <span>Leadership output</span>
-                </div>
-                <button type="button" onClick={() => onNavigate('report')}>Open <ArrowRight size={13} /></button>
-              </header>
+            <OutcomeCard title="Executive Report" subtitle="Leadership output" onOpen={() => onNavigate('report')}>
               {hasReport ? (
-                <>
-                  <div className="cc-report-snapshot">
-                    <strong>{number(packageView.evidencePoints)}</strong>
-                    <p>Evidence points extracted for the latest package</p>
-                    <small>{executive.detail}</small>
-                  </div>
-                  <dl>
-                    <div><dt>Top strategic signal</dt><dd>{executive.threat}</dd></div>
-                    <div><dt>Biggest opportunity</dt><dd>{executive.opportunity}</dd></div>
-                  </dl>
-                  <footer><strong>Report available</strong><span>{report ? formatDate(report.generatedAt) : ''}</span></footer>
-                </>
+                <div className="cc-report-snapshot cc-report-snapshot-rich">
+                  <strong>{number(display.package.evidencePoints)}</strong>
+                  <p>Evidence points available for the latest package</p>
+                  <small>{display.executive.marketSignal}</small>
+                  <small>{display.executive.andwellOpportunity}</small>
+                </div>
               ) : (
-                <OutcomeReadyState
-                  icon={<FileText size={22} />}
-                  title="Leadership output ready"
-                  body="The executive report will summarize market signal, Andwell opportunity, field guidance, and next moves."
-                />
+                <OutcomeReadyState icon={<FileText size={22} />} title="Leadership output ready" body="The executive report will summarize market signal, opportunity, field guidance, and next moves." />
               )}
-            </article>
+            </OutcomeCard>
           </div>
         </section>
 
@@ -260,22 +180,22 @@ export function HomeScreen({
             <div>
               <p className="cc-section-label">Latest intelligence package</p>
               <div className="cc-package-band-stats">
-                <article><strong>{number(packageView.competitors)}</strong><span>Competitors analyzed</span></article>
-                <article><strong>{number(packageView.pages)}</strong><span>Pages reviewed</span></article>
-                <article><strong>{number(packageView.capabilities)}</strong><span>Capabilities mapped</span></article>
-                <article><strong>{number(packageView.evidencePoints)}</strong><span>Evidence points extracted</span></article>
+                <article><strong>{number(display.package.competitors)}</strong><span>Competitors analyzed</span></article>
+                <article><strong>{number(display.package.pages)}</strong><span>Pages reviewed</span></article>
+                <article><strong>{number(display.package.capabilities)}</strong><span>Capabilities mapped</span></article>
+                <article><strong>{number(display.package.evidencePoints)}</strong><span>Evidence points</span></article>
               </div>
             </div>
             <div className="cc-confidence-panel">
               <strong>Evidence Confidence</strong>
               <div className="cc-confidence-bars">
-                <span style={{ width: `${confidenceHigh}%` }} />
-                <span style={{ width: `${confidenceMedium}%` }} />
+                <span style={{ width: `${display.package.highConfidencePercent}%` }} />
+                <span style={{ width: `${display.package.mediumConfidencePercent}%` }} />
                 <span style={{ width: `${confidenceGuarded}%` }} />
               </div>
               <div className="cc-confidence-legend">
-                <span>{confidenceHigh}% High</span>
-                <span>{confidenceMedium}% Medium</span>
+                <span>{display.package.highConfidencePercent}% High</span>
+                <span>{display.package.mediumConfidencePercent}% Medium</span>
                 <span>{confidenceGuarded}% Guarded Use</span>
               </div>
             </div>
@@ -292,6 +212,21 @@ export function HomeScreen({
   );
 }
 
+function OutcomeCard({ title, subtitle, onOpen, children }: { title: string; subtitle: string; onOpen: () => void; children: ReactNode }) {
+  return (
+    <article className="cc-preview-card cc-preview-card-rich">
+      <header>
+        <div>
+          <h2>{title}</h2>
+          <span>{subtitle}</span>
+        </div>
+        <button type="button" onClick={onOpen}>Open <ArrowRight size={13} /></button>
+      </header>
+      {children}
+    </article>
+  );
+}
+
 function OutcomeReadyState({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
   return (
     <div className="cc-outcome-ready">
@@ -300,6 +235,10 @@ function OutcomeReadyState({ icon, title, body }: { icon: ReactNode; title: stri
       <p>{body}</p>
     </div>
   );
+}
+
+function ProgressBar({ value }: { value: number }) {
+  return <span className="cc-home-progress"><i style={{ width: `${Math.max(6, Math.min(100, value))}%` }} /></span>;
 }
 
 function BuildingLineArt() {

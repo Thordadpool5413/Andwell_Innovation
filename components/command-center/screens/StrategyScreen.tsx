@@ -2,47 +2,39 @@
 
 import { ArrowRight, BriefcaseBusiness, MapPin, ShieldCheck } from 'lucide-react';
 import type { AdvantageMatrix, GrowthMap } from '../../../lib/intelligence-views';
-import type { Finding, IntelligenceReport } from '../../../lib/types';
+import type { IntelligenceReport } from '../../../lib/types';
+import type { IntelligenceDisplayModel } from '../intelligence-display';
 import { Button, EmptyState, number } from '../ui';
 
-function buildPlays(report: IntelligenceReport, matrix: AdvantageMatrix, growthMap: GrowthMap) {
-  const areas = growthMap.areas.length ? growthMap.areas : [];
-  return report.allFindings.slice(0, 6).map((finding: Finding, index) => {
-    const area = areas[index % Math.max(1, areas.length)];
-    const row = matrix.rows.find((item) => item.capability === finding.serviceLine);
-    const cell = row?.cells.find((item) => item.competitorName === finding.competitorName);
-    return {
-      id: finding.id,
-      capability: finding.serviceLine,
-      competitor: finding.competitorName,
-      geography: area?.area || 'Evidence-limited market area',
-      advantage: finding.andwellAdvantage || cell?.strategicAngle || `Lead with Andwell depth in ${finding.serviceLine}.`,
-      referralAngle: finding.safeSalesWording,
-      payerAngle: area ? `Position around ${area.payerValuePotential}% payer value potential and care complexity management.` : 'Connect capability depth to payer value and avoid unsupported market claims.',
-      partnershipAngle: area ? `Use ${area.partnershipPotential}% partnership potential as a leadership discussion signal.` : 'Use hospital, post acute, and referral-source needs as the partnership frame.',
-      avoid: finding.avoidSaying,
-      next: cell?.nextMove || area?.nextMove || 'Use current evidence in field-safe growth planning.'
-    };
-  });
-}
-
-export function StrategyScreenView({ report, onBuild, matrix, growthMap }: { report: IntelligenceReport | null; onBuild: () => void; matrix: AdvantageMatrix; growthMap: GrowthMap }) {
+export function StrategyScreenView({
+  report,
+  onBuild,
+  matrix,
+  growthMap,
+  display
+}: {
+  report: IntelligenceReport | null;
+  onBuild: () => void;
+  matrix: AdvantageMatrix;
+  growthMap: GrowthMap;
+  display: IntelligenceDisplayModel;
+}) {
   if (!report) {
     return <EmptyState title="Evidence intelligence ready" body="Build intelligence from public sources first." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />;
   }
-  const plays = buildPlays(report, matrix, growthMap);
-  const topArea = growthMap.areas[0];
+  const plays = display.fieldGuidance.slice(0, 8);
+  const topArea = display.territories[0];
   return (
     <div className="cc-workspace cc-strategy-workspace">
       <section className="cc-workspace-hero">
         <div>
           <p className="cc-section-label">Growth plays</p>
           <h2>Strategy Playbook</h2>
-          <p>Turn capability comparison and market opportunity into practical growth moves for partnerships, referral sources, payer value, and field execution.</p>
+          <p>Turn capability comparison, territory signals, source excerpts, and safe language into practical growth moves for partnerships, referral sources, payer value, and field execution.</p>
         </div>
         <div className="cc-workspace-stats">
-          <article><strong>{report.competitorsAnalyzed}</strong><span>Competitors</span></article>
-          <article><strong>{number(report.pagesReviewed)}</strong><span>Pages reviewed</span></article>
+          <article><strong>{display.package.competitors}</strong><span>Competitors</span></article>
+          <article><strong>{number(display.package.pages)}</strong><span>Pages reviewed</span></article>
           <article><strong>{matrix.summary.advantageSignals}</strong><span>Advantage signals</span></article>
           <article><strong>{growthMap.summary.fieldFocusZones.length}</strong><span>Field zones</span></article>
         </div>
@@ -69,16 +61,16 @@ export function StrategyScreenView({ report, onBuild, matrix, growthMap }: { rep
             <header>
               <span>Priority {index + 1}</span>
               <h3>{play.capability}</h3>
-              <p>{play.competitor} | {play.geography}</p>
+              <p>{play.competitorName} | {play.marketArea}</p>
             </header>
             <div className="cc-play-body">
-              <div><strong>Andwell advantage</strong><p>{play.advantage}</p></div>
-              <div><strong>Referral source angle</strong><p>{play.referralAngle}</p></div>
-              <div><strong>Payer value angle</strong><p>{play.payerAngle}</p></div>
-              <div><strong>Partnership angle</strong><p>{play.partnershipAngle}</p></div>
-              <div><strong>What not to say</strong><p>{play.avoid}</p></div>
+              <div><strong>Evidence basis</strong><p>{play.evidenceBasis}</p></div>
+              <div><strong>Referral source angle</strong><p>{play.safeTalkTrack}</p></div>
+              <div><strong>Payer value angle</strong><p>{topArea ? `Connect ${play.capability} to payer value potential in ${topArea.area} while staying source-backed.` : 'Connect capability depth to payer value and avoid unsupported market claims.'}</p></div>
+              <div><strong>Partnership angle</strong><p>{topArea ? `Use ${topArea.area} partnership signals for care transitions, post acute relationships, and complex community care fit.` : 'Use hospital, post acute, and referral-source needs as the partnership frame.'}</p></div>
+              <div><strong>What not to say</strong><p>{play.whatNotToSay}</p></div>
             </div>
-            <footer><ArrowRight size={16} /><strong>{play.next}</strong></footer>
+            <footer><ArrowRight size={16} /><strong>{play.nextMove}</strong></footer>
           </article>
         ))}
       </section>

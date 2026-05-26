@@ -4,6 +4,7 @@ import { MessageSquareText, RefreshCcw, Send, ShieldCheck, Sparkles } from 'luci
 import type { AdvantageMatrix, GrowthMap } from '../../../lib/intelligence-views';
 import type { IntelligenceReport } from '../../../lib/types';
 import type { AskResponse } from '../model';
+import type { IntelligenceDisplayModel } from '../intelligence-display';
 import { displayStatus, scrubOutputText, toneForStatus } from '../helpers';
 import { Badge, Button, Notice } from '../ui';
 
@@ -63,7 +64,8 @@ export function CoachScreenView({
   askResponse,
   onAsk,
   matrix,
-  growthMap
+  growthMap,
+  display
 }: {
   report: IntelligenceReport | null;
   question: string;
@@ -73,6 +75,7 @@ export function CoachScreenView({
   onAsk: () => void;
   matrix: AdvantageMatrix;
   growthMap: GrowthMap;
+  display: IntelligenceDisplayModel;
 }) {
   const starters = [
     'What should I say to a referral source?',
@@ -97,7 +100,7 @@ export function CoachScreenView({
           <article><strong>{report ? 'Loaded' : 'Ready'}</strong><span>Evidence package</span></article>
           <article><strong>{matrix.summary.capabilitiesMapped}</strong><span>Capability signals</span></article>
           <article><strong>{growthMap.areas.length}</strong><span>Market areas</span></article>
-          <article><strong>Active</strong><span>Language rules</span></article>
+          <article><strong>{display.package.evidencePoints || 'Active'}</strong><span>Evidence guardrails</span></article>
         </div>
       </section>
 
@@ -117,7 +120,7 @@ export function CoachScreenView({
           <div className="cc-build-actions">
             <Button variant="primary" disabled={askBusy || !question.trim() || !report} onClick={onAsk}>{askBusy ? <RefreshCcw size={16} className="cc-spin" /> : <Send size={16} />} Ask the System</Button>
           </div>
-          <Notice title="Evidence intelligence ready" body={report ? `Answers use stored evidence plus ${matrix.summary.capabilitiesMapped} capability signals and ${growthMap.areas.length} market areas.` : 'Build intelligence from public sources first.'} tone={report ? 'blue' : 'amber'} />
+          <Notice title="Evidence intelligence ready" body={report ? `Answers use ${display.package.evidencePoints} evidence items, ${matrix.summary.capabilitiesMapped} capability signals, and ${growthMap.areas.length} market areas.` : 'Build intelligence from public sources first.'} tone={report ? 'blue' : 'amber'} />
         </div>
 
         <aside className="cc-dark-panel cc-detail-panel">
@@ -130,6 +133,45 @@ export function CoachScreenView({
           </div>
         </aside>
       </section>
+
+      {report ? (
+        <section className="cc-coach-context-grid">
+          <article className="cc-feature-panel">
+            <p className="cc-section-label">Evidence context</p>
+            <h3>What the advisor can use</h3>
+            <div className="cc-evidence-rail">
+              {display.evidenceDigest.slice(0, 5).map((item) => (
+                <article key={`coach-context-${item.id}`}>
+                  <MessageSquareText size={17} />
+                  <div>
+                    <strong>{item.competitorName} | {item.serviceLine}</strong>
+                    <p>{item.excerpt}</p>
+                    <span>{item.sourceTitle || item.sourceUrl || 'Reviewed public source'}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </article>
+          <article className="cc-feature-panel">
+            <p className="cc-section-label">Map and matrix context</p>
+            <h3>Signals available for questions</h3>
+            <div className="cc-coach-signal-list">
+              {display.capabilities.slice(0, 4).map((item) => (
+                <div key={`coach-cap-${item.capability}`}>
+                  <strong>{item.capability}</strong>
+                  <span>{item.advantages} advantage signals | {item.evidenceCount} evidence items</span>
+                </div>
+              ))}
+              {display.territories.slice(0, 3).map((area) => (
+                <div key={`coach-area-${area.area}`}>
+                  <strong>{area.area}</strong>
+                  <span>{area.signal} | growth score {area.scores.growth}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+      ) : null}
 
       {askResponse ? (
         <section className="cc-feature-panel">
