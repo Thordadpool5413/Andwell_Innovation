@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { AdvantageMatrix, MatrixCell } from '../../../lib/intelligence-views';
-import { Badge, Button, EmptyState, Progress } from '../ui';
+import { Badge, Button, EmptyState, Notice, Progress } from '../ui';
 
 type MatrixMode = 'executive' | 'evidence' | 'field';
 
@@ -22,7 +22,7 @@ function confidenceValue(confidence: string) {
   return 24;
 }
 
-export function MatrixScreenView({ matrix }: { matrix: AdvantageMatrix }) {
+export function MatrixScreenView({ matrix, hasReport }: { matrix: AdvantageMatrix; hasReport: boolean }) {
   const firstCell = matrix.rows[0]?.cells[0] || null;
   const [selected, setSelected] = useState<{ capability: string; competitorName: string } | null>(firstCell ? { capability: firstCell.capability, competitorName: firstCell.competitorName } : null);
   const [mode, setMode] = useState<MatrixMode>('executive');
@@ -31,6 +31,21 @@ export function MatrixScreenView({ matrix }: { matrix: AdvantageMatrix }) {
     return matrix.rows.find((row) => row.capability === selected.capability)?.cells.find((cell) => cell.competitorName === selected.competitorName) || firstCell;
   }, [firstCell, matrix.rows, selected]);
   const strongest = matrix.rows.flatMap((row) => row.cells).filter((cell) => cell.status === 'Andwell advantage').slice(0, 4);
+
+  if (!hasReport) {
+    return (
+      <div className="cc-workspace cc-matrix-workspace">
+        <section className="cc-workspace-hero">
+          <div>
+            <p className="cc-section-label">Capability comparison</p>
+            <h2>Andwell Advantage Matrix</h2>
+            <p>Compare Andwell capabilities against public competitor evidence with confidence, safe language, and recommended next moves built into each cell.</p>
+          </div>
+        </section>
+        <Notice title="Evidence intelligence ready" body="Build intelligence from public sources first." tone="amber" />
+      </div>
+    );
+  }
 
   return (
     <div className="cc-workspace cc-matrix-workspace">

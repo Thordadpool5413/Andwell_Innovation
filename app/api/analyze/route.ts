@@ -4,6 +4,7 @@ import { analyzeCompetitor, buildReport } from '../../../lib/analysis';
 import { extractCompetitorIntelligence, isAIExtractionConfigured } from '../../../lib/ai-extractor';
 import { enrichProvidersWithFreeSources } from '../../../lib/free-health-intel';
 import { enrichReportIntelligence } from '../../../lib/intelligence-policy';
+import { patchRuntimeAnalyzeJob, setRuntimeAnalyzeJob } from '../../../lib/analyze-job-registry';
 import { getScanJob, markStaleScanJobsFailed, saveReport, saveScanJob } from '../../../lib/store';
 import { rateLimit, requestIp } from '../../../lib/rate-limit';
 import { parseAllowedHostPatterns, validatePublicHttpUrl } from '../../../lib/url-safety';
@@ -154,6 +155,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 
 async function updateJob(job: AnalyzeJob, patch: Partial<AnalyzeJob>) {
   const next = { ...job, ...patch, timing: { ...job.timing, ...(patch.timing || {}) } };
+  setRuntimeAnalyzeJob(next);
   await saveScanJob(next);
   return next;
 }
@@ -242,6 +244,7 @@ async function runAnalyzeJob(params: {
   if (crawlErrors.length) warnings.push(`${crawlErrors.length} source crawl warning${crawlErrors.length === 1 ? '' : 's'} were handled with safe fallback analysis.`);
   if (aiErrors.length) warnings.push(`${aiErrors.length} AI enrichment warning${aiErrors.length === 1 ? '' : 's'} were handled with deterministic intelligence processing.`);
 
+  patchRuntimeAnalyzeJob(job.id, { report: enhancedReport });
   await updateJob(job, {
     status: timedOut ? 'timed_out' : 'completed',
     endedAt: new Date().toISOString(),
@@ -250,6 +253,7 @@ async function runAnalyzeJob(params: {
     reportId: enhancedReport.id,
     timing: { elapsedMs: Date.now() - started, perCompetitorMs }
   });
+  patchRuntimeAnalyzeJob(job.id, { report: enhancedReport });
 }
 
 export async function GET() {
@@ -299,6 +303,7 @@ export async function POST(req: NextRequest) {
       errors: [],
       timing: { elapsedMs: 0, perCompetitorMs: {} }
     };
+    setRuntimeAnalyzeJob(job);
     await saveScanJob(job);
 
     if (!runningJobs.has(job.id)) {

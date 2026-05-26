@@ -74,7 +74,7 @@ export function LibraryScreenView({
             ))}
           </div>
         ) : (
-          <EmptyState title="Built outputs ready to generate" body="Enter public sources and build intelligence to create trusted outputs, source-based guidance, and strategy signals." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />
+          <EmptyState title="Evidence intelligence ready" body="Build intelligence from public sources first." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />
         )}
       </section>
 
@@ -97,7 +97,7 @@ export function LibraryScreenView({
                 </article>
               ))}
             </div>
-          ) : <EmptyState title="Source library ready" body="Competitor sources appear here after source intake and intelligence builds." />}
+          ) : <EmptyState title="Evidence intelligence ready" body="Build intelligence from public sources first." />}
         </div>
         <aside className="cc-dark-panel">
           <p className="cc-section-label">Output guardrails</p>

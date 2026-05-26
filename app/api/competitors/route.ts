@@ -17,7 +17,7 @@ function sanitizeCompetitor(competitor: CompetitorInput): CompetitorInput | null
     ...competitor,
     url: result.url,
     name: competitor.name?.trim() || undefined,
-    market: competitor.market?.trim() || 'Needs review',
+    market: competitor.market?.trim() || 'Evidence limited',
     notes: competitor.notes?.slice(0, 1000)
   };
 }

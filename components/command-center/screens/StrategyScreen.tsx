@@ -28,7 +28,7 @@ function buildPlays(report: IntelligenceReport, matrix: AdvantageMatrix, growthM
 
 export function StrategyScreenView({ report, onBuild, matrix, growthMap }: { report: IntelligenceReport | null; onBuild: () => void; matrix: AdvantageMatrix; growthMap: GrowthMap }) {
   if (!report) {
-    return <EmptyState title="Strategy builder ready" body="Enter public sources and build intelligence to generate growth plays, field guidance, and leadership strategy outputs." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />;
+    return <EmptyState title="Evidence intelligence ready" body="Build intelligence from public sources first." action={<Button onClick={onBuild}>Build Andwell Intelligence</Button>} />;
   }
   const plays = buildPlays(report, matrix, growthMap);
   const topArea = growthMap.areas[0];

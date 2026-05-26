@@ -11,7 +11,15 @@ import { Button, EmptyState, formatDate, number } from '../ui';
 export function ReportScreenView({ report, approvedItems, growthMap, matrix }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[]; growthMap: GrowthMap; matrix: AdvantageMatrix }) {
   const [exportState, setExportState] = useState('');
 
-  if (!report) return <EmptyState title="Executive report ready" body="Build intelligence from public competitor sources to generate a leadership-ready output package." />;
+  if (!report) {
+    return (
+      <EmptyState
+        title="Evidence intelligence ready"
+        body="Build intelligence from public sources first."
+        action={<Button variant="secondary" onClick={() => window.print()}><Printer size={16} /> Print Report</Button>}
+      />
+    );
+  }
   const topFindings = approvedItems.slice(0, 5);
   const topArea = growthMap.areas[0];
 

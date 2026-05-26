@@ -12,7 +12,7 @@ import { GrowthMapScreenView } from './screens/GrowthMapScreen';
 import { StrategyScreenView } from './screens/StrategyScreen';
 import { CoachScreenView } from './screens/CoachScreen';
 import { ReportScreenView } from './screens/ReportScreen';
-import { currentNextAction, parseSourceInput, sanitizeUserFacingError, scanProgressPercent, toReviewable } from './helpers';
+import { parseSourceInput, sanitizeUserFacingError, scanProgressPercent, toReviewable } from './helpers';
 import { buildAdvantageMatrix, buildGrowthMap, type AdvantageMatrix, type GrowthMap } from '../../lib/intelligence-views';
 
 const initialState: CommandCenterState = {
@@ -160,7 +160,6 @@ export default function CommandCenterApp() {
     return approvedItems.filter((item) => [item.competitorName, item.serviceLine, 'subservice' in item ? item.subservice : '', item.evidenceExcerpt, item.safeSalesWording].join(' ').toLowerCase().includes(query)).slice(0, 80);
   }, [approvedItems, search]);
 
-  const nextAction = currentNextAction(Boolean(state.currentReport));
   const matrix = useMemo<AdvantageMatrix>(() => buildAdvantageMatrix(state.currentReport), [state.currentReport]);
   const growthMap = useMemo<GrowthMap>(() => buildGrowthMap(state.currentReport, matrix), [state.currentReport, matrix]);
   const scanPercent = scanProgressPercent(state.scanProgress?.done || 0, state.scanProgress?.total || 0);
@@ -177,6 +176,7 @@ export default function CommandCenterApp() {
       const report = await runAnalysis(competitors, 8, (update: ScanLifecycleUpdate) => {
         setState((current) => ({ ...current, scanJobId: update.jobId, scanStatus: update.status, scanProgress: update.progress, scanWarnings: update.warnings }));
       });
+      const hydratedReport = report.id ? (await fetchReport(report.id).catch(() => ({ report }))).report : report;
       const [reportsPayload, competitorsPayload] = await Promise.all([fetchReports(), fetchCompetitors()]);
       setState((current) => ({
         ...current,
@@ -184,12 +184,13 @@ export default function CommandCenterApp() {
         error: '',
         competitors: competitorsPayload.competitors,
         reports: reportsPayload.reports,
-        currentReport: report,
+        currentReport: hydratedReport,
         scanStatus: 'completed',
         scanProgress: { done: competitors.length, total: competitors.length }
       }));
-      const sourceIssues = report.sourceHealth?.filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length || 0;
-      setScanMessage(`Intelligence package created. ${report.competitorsAnalyzed} competitor${report.competitorsAnalyzed === 1 ? '' : 's'} processed, ${report.pagesReviewed} public page${report.pagesReviewed === 1 ? '' : 's'} reviewed, and ${sourceIssues} source safeguard${sourceIssues === 1 ? '' : 's'} handled.`);
+      const sourceIssues = hydratedReport.sourceHealth?.filter((source) => source.status === 'duplicate' || source.status === 'rejected' || source.status === 'skipped' || source.status === 'warning').length || 0;
+      setSourceText('');
+      setScanMessage(`Intelligence package created. ${hydratedReport.competitorsAnalyzed} competitor${hydratedReport.competitorsAnalyzed === 1 ? '' : 's'} processed, ${hydratedReport.pagesReviewed} public page${hydratedReport.pagesReviewed === 1 ? '' : 's'} reviewed, and ${sourceIssues} source safeguard${sourceIssues === 1 ? '' : 's'} handled.`);
       setActiveTab('strategy');
     } catch (error) {
       setState((current) => ({ ...current, scanStatus: 'failed' }));
@@ -227,10 +228,10 @@ export default function CommandCenterApp() {
       onChange={setActiveTab}
       onRefresh={() => void loadWorkspace()}
     >
-      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} nextAction={nextAction} matrix={matrix} growthMap={growthMap} onBuild={() => setActiveTab('sources')} /> : null}
+      {activeTab === 'dashboard' ? <HomeScreen state={state} approvedItems={approvedItems} matrix={matrix} growthMap={growthMap} onBuild={() => setActiveTab('sources')} onNavigate={setActiveTab} /> : null}
       {activeTab === 'sources' ? <BuildIntelligenceScreen state={state} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} scanPercent={scanPercent} /> : null}
-      {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} /> : null}
-      {activeTab === 'map' ? <GrowthMapScreenView growthMap={growthMap} /> : null}
+      {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} hasReport={Boolean(state.currentReport)} /> : null}
+      {activeTab === 'map' ? <GrowthMapScreenView growthMap={growthMap} hasReport={Boolean(state.currentReport)} /> : null}
       {activeTab === 'library' ? <LibraryScreenView approvedItems={filteredApproved} allApprovedCount={approvedItems.length} search={search} setSearch={setSearch} competitors={state.competitors} onDelete={(url) => void handleDeleteCompetitor(url)} onBuild={() => setActiveTab('sources')} /> : null}
       {activeTab === 'strategy' ? <StrategyScreenView report={state.currentReport} onBuild={() => setActiveTab('sources')} matrix={matrix} growthMap={growthMap} /> : null}
       {activeTab === 'coach' ? <CoachScreenView report={state.currentReport} question={question} setQuestion={setQuestion} askBusy={askBusy} askResponse={askResponse} onAsk={() => void handleAsk()} growthMap={growthMap} matrix={matrix} /> : null}

@@ -128,5 +128,6 @@ export type ScanResult = {
 
 export type SourcePreviewItem = SourceHealth & {
   raw: string;
+  name?: string;
   valid: boolean;
 };

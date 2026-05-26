@@ -42,7 +42,7 @@ export function BuildIntelligenceScreen({
 
   return (
     <div className="cc-build-page">
-      <section className="cc-build-command">
+      <section className="cc-build-command cc-build-command-single">
         <div className="cc-build-intake">
           <p className="cc-section-label">Source intake</p>
           <h2>Build the next Andwell intelligence package.</h2>
@@ -83,65 +83,32 @@ export function BuildIntelligenceScreen({
               tone="amber"
             />
           ) : null}
-        </div>
 
-        <aside className="cc-build-cockpit" aria-label="Build intelligence processing cockpit">
-          <div className="cc-cockpit-head">
-            <span>Build Intelligence</span>
-            <h2>Operational Cockpit</h2>
-            <p>Source input, package status, and processing pipeline.</p>
-            <em><CheckCircle2 size={14} /> {status === 'completed' ? 'Analysis Complete' : scanBusy ? 'Analysis Running' : 'Ready'}</em>
-          </div>
-
-          <section className="cc-cockpit-panel">
-            <div className="cc-cockpit-panel-title">
-              <span>Source Input</span>
-              <strong>{parsed.length || report?.competitorsAnalyzed || 0} websites</strong>
-            </div>
-            <div className="cc-source-chips cc-build-source-chips">
-              {(parsed.length ? parsed : report?.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url })) || []).slice(0, 6).map((source) => (
-                <span key={`${source.name || source.url}-${source.url}`}>{source.name || compactUrl(source.url)}</span>
-              ))}
-              {(parsed.length || report?.competitorsAnalyzed || 0) > 6 ? <span>+{(parsed.length || report?.competitorsAnalyzed || 0) - 6} more</span> : null}
-            </div>
-          </section>
-
-          <section className="cc-cockpit-row">
-            <span>Package Status</span>
-            <strong><CheckCircle2 size={15} /> {status === 'completed' ? 'Completed' : scanBusy ? 'Processing' : 'Ready'}</strong>
-            <small>{displayPercent}%</small>
-          </section>
-
-          <section className="cc-cockpit-panel">
-            <div className="cc-cockpit-panel-title">
-              <span>Processing Pipeline</span>
+          <section className="cc-build-progress-panel" aria-label="Build intelligence progress">
+            <div className="cc-build-progress-head">
+              <div>
+                <p className="cc-section-label">Package status</p>
+                <h3>{status === 'completed' ? 'Intelligence package created' : scanBusy ? 'Building intelligence package' : 'Ready to build from public sources'}</h3>
+              </div>
+              <Badge tone={status === 'completed' ? 'green' : scanBusy ? 'blue' : 'teal'}>
+                {status === 'completed' ? 'Connected across app' : scanBusy ? `${displayPercent}%` : `${parsed.length} selected`}
+              </Badge>
             </div>
             <Progress value={displayPercent} tone={status === 'failed' ? 'red' : status === 'timed_out' ? 'amber' : 'teal'} />
-            <div className="cc-cockpit-steps">
+            <div className="cc-build-pipeline">
               {pipeline.map((step, index) => {
                 const completed = status === 'completed' || displayPercent >= ((index + 1) / pipeline.length) * 100;
                 return (
-                  <div key={step}>
-                    <strong className={completed ? 'is-done' : ''}><CheckCircle2 size={15} /> {step}</strong>
-                    <span>{completed ? 'Completed' : scanBusy ? 'Queued' : 'Ready'}</span>
+                  <div key={step} className={completed ? 'is-done' : ''}>
+                    <CheckCircle2 size={15} />
+                    <span>{step}</span>
+                    <small>{completed ? 'Completed' : scanBusy ? 'Queued' : 'Ready'}</small>
                   </div>
                 );
               })}
             </div>
           </section>
-
-          <section className="cc-cockpit-panel">
-            <div className="cc-cockpit-panel-title">
-              <span>Package Details</span>
-            </div>
-            <dl className="cc-run-details">
-              <div><dt>Competitors</dt><dd>{report?.competitorsAnalyzed || parsed.length || 0}</dd></div>
-              <div><dt>Pages Reviewed</dt><dd>{report?.pagesReviewed || 'Pending build'}</dd></div>
-              <div><dt>Capabilities</dt><dd>{report?.serviceLinesMapped || 'Pending build'}</dd></div>
-              <div><dt>Evidence Points</dt><dd>{report ? report.allFindings.length + report.allSubserviceFindings.length : 'Pending build'}</dd></div>
-            </dl>
-          </section>
-        </aside>
+        </div>
       </section>
 
       {report ? (
@@ -163,8 +130,8 @@ export function BuildIntelligenceScreen({
       <Card title="Source validation" action={<Badge tone={preview.length ? 'blue' : 'slate'}>{preview.length} entered</Badge>}>
         {preview.length ? (
           <div className="cc-source-grid">
-            {preview.map((competitor) => (
-              <div key={competitor.raw} className={`cc-source-card ${competitor.valid ? 'valid' : 'invalid'}`}>
+            {preview.map((competitor, index) => (
+              <div key={`${competitor.raw}-${index}`} className={`cc-source-card ${competitor.valid ? 'valid' : 'invalid'}`}>
                 {competitor.valid ? <Database size={18} /> : <AlertTriangle size={18} />}
                 <strong>{competitor.valid && competitor.url ? compactUrl(competitor.url) : competitor.raw}</strong>
                 <span>{competitor.reason} Quality score: {competitor.qualityScore}.</span>

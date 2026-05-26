@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, MapPin, Target } from 'lucide-react';
 import type { GrowthMap, GrowthSignal } from '../../../lib/intelligence-views';
-import { Badge, Progress } from '../ui';
+import { Badge, Notice, Progress } from '../ui';
 
 function toneForSignal(signal: GrowthSignal) {
   if (signal === 'High Growth Opportunity' || signal === 'White Space Opportunity') return 'green';
@@ -12,7 +12,7 @@ function toneForSignal(signal: GrowthSignal) {
   return 'teal';
 }
 
-export function GrowthMapScreenView({ growthMap }: { growthMap: GrowthMap }) {
+export function GrowthMapScreenView({ growthMap, hasReport }: { growthMap: GrowthMap; hasReport: boolean }) {
   const [selected, setSelected] = useState<string | null>(growthMap.areas[0]?.area || null);
   const [activeLayer, setActiveLayer] = useState<'growth' | 'saturation' | 'advantage' | 'confidence'>('growth');
   const selectedArea = growthMap.areas.find((area) => area.area === selected) || growthMap.areas[0] || null;
@@ -21,6 +21,21 @@ export function GrowthMapScreenView({ growthMap }: { growthMap: GrowthMap }) {
     saturation: [...growthMap.areas].sort((a, b) => b.saturationScore - a.saturationScore).slice(0, 5),
     field: [...growthMap.areas].sort((a, b) => b.fieldFocusPriority - a.fieldFocusPriority).slice(0, 5)
   }), [growthMap.areas]);
+
+  if (!hasReport) {
+    return (
+      <div className="cc-workspace cc-map-workspace">
+        <section className="cc-workspace-hero">
+          <div>
+            <p className="cc-section-label">Market opportunity</p>
+            <h2>Growth Opportunity Map</h2>
+            <p>Map source-backed market signals into growth opportunity, saturation, Andwell advantage, field focus, and partnership potential.</p>
+          </div>
+        </section>
+        <Notice title="Evidence intelligence ready" body="Build intelligence from public sources first." tone="amber" />
+      </div>
+    );
+  }
 
   return (
     <div className="cc-workspace cc-map-workspace">

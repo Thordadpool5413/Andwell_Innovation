@@ -6,22 +6,60 @@ import { userCopy } from './copy';
 export function parseSourceInput(value: string): CompetitorInput[] {
   return sourcePreview(value)
     .filter((item) => item.valid && item.url)
-    .map((item) => ({ url: item.url as string }));
+    .map((item) => ({ name: item.name, url: item.url as string }));
+}
+
+function cleanCandidateUrl(value: string) {
+  return value
+    .trim()
+    .replace(/[)\].,;]+$/g, '')
+    .replace(/^[(\[]+/g, '');
+}
+
+function extractSourceCandidate(entry: string) {
+  const explicitUrl = entry.match(/https?:\/\/[^\s|<>"']+/i)?.[0];
+  if (explicitUrl) return cleanCandidateUrl(explicitUrl);
+
+  const webUrl = entry.match(/\bwww\.[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s|<>"']*)?/i)?.[0];
+  if (webUrl) return cleanCandidateUrl(webUrl);
+
+  const domainUrl = entry.match(/\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:\/[^\s|<>"']*)?/i)?.[0];
+  if (domainUrl) return cleanCandidateUrl(domainUrl);
+
+  return '';
+}
+
+function sourceEntries(value: string) {
+  const explicitOrDomain = /(?:https?:\/\/[^\s|<>"']+|www\.[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s|<>"']*)?|\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:\/[^\s|<>"']*)?)/gi;
+  return value
+    .split(/\n+/)
+    .flatMap((line) => {
+      const entry = line.trim();
+      if (!entry) return [];
+      const matches = [...entry.matchAll(explicitOrDomain)].map((match) => cleanCandidateUrl(match[0]));
+      return matches.length > 1 ? matches : [entry];
+    })
+    .filter(Boolean);
+}
+
+function extractSourceName(entry: string, url: string) {
+  const index = entry.toLowerCase().indexOf(url.toLowerCase());
+  if (index <= 0) return undefined;
+  const beforeUrl = entry.slice(0, index).replace(/[|\-–—:]+$/g, '').trim();
+  return beforeUrl || undefined;
 }
 
 export function sourcePreview(value: string) {
   const seen = new Set<string>();
-  return value
-    .split(/[\n,]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean)
+  return sourceEntries(value)
     .slice(0, 25)
     .map((entry): SourcePreviewItem => {
-      const result = validatePublicHttpUrl(entry);
+      const candidate = extractSourceCandidate(entry);
+      const result = validatePublicHttpUrl(candidate || entry);
       if (!result.ok || !result.url) {
         return {
           raw: entry,
-          input: entry,
+          input: candidate || entry,
           url: result.url,
           host: result.host,
           valid: false,
@@ -45,7 +83,8 @@ export function sourcePreview(value: string) {
       seen.add(result.url);
       return {
         raw: entry,
-        input: entry,
+        input: candidate,
+        name: extractSourceName(entry, candidate),
         url: result.url,
         host: result.host,
         valid: true,

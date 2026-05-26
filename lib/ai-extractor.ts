@@ -41,13 +41,13 @@ function arrayOfStrings(value: unknown) {
 function status(value: unknown) {
   const allowed = ['Clearly offered', 'Mentioned only', 'Related but not equivalent', 'Not found publicly', 'Unclear', 'Needs human review'];
   const text = String(value || '').trim();
-  return allowed.includes(text) ? text as AICompetitorExtraction['subserviceDepth'][number]['status'] : 'Needs human review';
+  return allowed.includes(text) ? text as AICompetitorExtraction['subserviceDepth'][number]['status'] : 'Unclear';
 }
 
 function confidence(value: unknown) {
   const allowed = ['High', 'Moderate', 'Low', 'Not found', 'Needs review'];
   const text = String(value || '').trim();
-  return allowed.includes(text) ? text as AICompetitorExtraction['subserviceDepth'][number]['confidence'] : 'Needs review';
+  return allowed.includes(text) ? text as AICompetitorExtraction['subserviceDepth'][number]['confidence'] : 'Low';
 }
 
 function evidenceStrength(value: unknown) {
@@ -80,10 +80,10 @@ function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtr
     proofPoints: arrayOfStrings(raw?.proofPoints),
     referralCallsToAction: arrayOfStrings(raw?.referralCallsToAction),
     serviceLineDepth: Array.isArray(raw?.serviceLineDepth) ? raw.serviceLineDepth.slice(0, 30).map((item: any) => ({
-      serviceLine: safeText(item?.serviceLine, 'Needs review'),
+      serviceLine: safeText(item?.serviceLine, 'Evidence limited'),
       depthScore: clampScore(item?.depthScore),
       evidenceStrength: evidenceStrength(item?.evidenceStrength),
-      summary: safeText(item?.summary, 'Needs review.'),
+      summary: safeText(item?.summary, 'Evidence is limited for this service line.'),
       competitorAdvantages: arrayOfStrings(item?.competitorAdvantages),
       andwellAdvantages: arrayOfStrings(item?.andwellAdvantages),
       proofPoints: arrayOfStrings(item?.proofPoints),
@@ -91,8 +91,8 @@ function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtr
       reviewRisk: reviewRisk(item?.reviewRisk)
     })) : [],
     subserviceDepth: Array.isArray(raw?.subserviceDepth) ? raw.subserviceDepth.slice(0, 300).map((item: any) => ({
-      serviceLine: safeText(item?.serviceLine, 'Needs review'),
-      subservice: safeText(item?.subservice, 'Needs review'),
+      serviceLine: safeText(item?.serviceLine, 'Evidence limited'),
+      subservice: safeText(item?.subservice, 'Evidence limited'),
       status: status(item?.status),
       confidence: confidence(item?.confidence),
       evidenceExcerpt: safeText(item?.evidenceExcerpt, 'No evidence excerpt returned by AI.'),
@@ -107,7 +107,7 @@ function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtr
     reviewRisks: arrayOfStrings(raw?.reviewRisks),
     leadershipSummary: safeText(raw?.leadershipSummary, 'AI leadership summary was not returned.'),
     salesBattlecards: Array.isArray(raw?.salesBattlecards) ? raw.salesBattlecards.slice(0, 30).map((item: any) => ({
-      serviceLine: safeText(item?.serviceLine, 'Needs review'),
+      serviceLine: safeText(item?.serviceLine, 'Evidence limited'),
       leadWith: safeText(item?.leadWith, 'Lead with Andwell service depth.'),
       referralQuestion: safeText(item?.referralQuestion, 'What specific patient need are you trying to solve?'),
       objectionResponse: safeText(item?.objectionResponse, 'Acknowledge the relationship and pivot to the specific patient need.'),
@@ -200,6 +200,7 @@ Safety and compliance rules:
 4. Create sales language that is safe, evidence based, and guarded when evidence is incomplete.
 5. Compare at both service line and subservice level.
 6. Prioritize pages with higher intelligenceScore when evidence conflicts.
+7. If evidence is incomplete, use guarded "Evidence limited" reasoning instead of review or approval language.
 
 Required JSON keys:
 providerName, servicesMentioned, benefitsMentioned, claimsMade, programsOffered, proofPoints, referralCallsToAction, serviceLineDepth, subserviceDepth, competitorAdvantages, andwellAdvantages, safeSalesLanguage, doNotSayLanguage, reviewRisks, leadershipSummary, salesBattlecards, rawConfidence.
@@ -239,8 +240,8 @@ Return JSON in this exact shape:
     {
       "serviceLine": "string",
       "subservice": "string",
-      "status": "Clearly offered | Mentioned only | Related but not equivalent | Not found publicly | Unclear | Needs human review",
-      "confidence": "High | Moderate | Low | Not found | Needs review",
+      "status": "Clearly offered | Mentioned only | Related but not equivalent | Not found publicly | Unclear",
+      "confidence": "High | Moderate | Low | Not found",
       "evidenceExcerpt": "string",
       "sourceUrl": "string",
       "safeSalesLanguage": "string",

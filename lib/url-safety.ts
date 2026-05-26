@@ -86,6 +86,9 @@ export function validatePublicHttpUrl(rawUrl: string, allowedHostPatterns: strin
     if (!host || isInternalHostname(host)) {
       return { ok: false, input: rawUrl, host, issue: 'internal_hostname', reason: 'Local, internal, test, and private hostnames are blocked.' };
     }
+    if (host.includes('%') || (!host.includes('.') && !host.includes(':') && !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host))) {
+      return { ok: false, input: rawUrl, host, issue: 'invalid', reason: 'Enter a complete public website address, such as https://provider.org/services.' };
+    }
     if (blockedIPv4(host) || blockedIPv6(host)) {
       return { ok: false, input: rawUrl, host, issue: 'private_host', reason: 'Private, loopback, link-local, and internal IP addresses are blocked.' };
     }
@@ -111,4 +114,3 @@ export function validatePublicHttpUrl(rawUrl: string, allowedHostPatterns: strin
 export function isSafePublicTarget(url: string, allowedHostPatterns: string[] = []) {
   return validatePublicHttpUrl(url, allowedHostPatterns).ok;
 }
-

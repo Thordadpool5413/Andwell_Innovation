@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRuntimeAnalyzeJob } from '../../../../lib/analyze-job-registry';
 import { getReport, getScanJob } from '../../../../lib/store';
 
 export const runtime = 'nodejs';
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const jobId = url.searchParams.get('jobId');
     if (!jobId) return NextResponse.json({ error: 'jobId is required.' }, { status: 400 });
-    const job = await getScanJob(jobId);
+    const job = await getScanJob(jobId) || getRuntimeAnalyzeJob(jobId);
     if (!job) {
       const match = jobId.match(/^scan_(\d+)_/);
       const createdMs = match ? Number(match[1]) : 0;
@@ -29,7 +30,8 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json({ error: 'Scan job not found.' }, { status: 404 });
     }
-    const report = job.reportId ? await getReport(job.reportId) : null;
+    const runtimeReport = 'report' in job ? job.report : null;
+    const report = runtimeReport || (job.reportId ? await getReport(job.reportId) : null);
     return NextResponse.json({
       jobId: job.id,
       status: job.status,

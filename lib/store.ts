@@ -424,6 +424,15 @@ async function optionalSupabaseUpsert(table: string, rows: object[], onConflict:
   }
 }
 
+async function optionalSupabaseDeleteAll(table: string, column: string) {
+  try {
+    const result = await getSupabaseClient().from(table).delete().neq(column, '__andwell_never_match__');
+    if (result.error) console.warn(`Optional Supabase delete ${table} failed: ${result.error.message}`);
+  } catch (error) {
+    console.warn(`Optional Supabase delete ${table} could not complete.`, error);
+  }
+}
+
 function urlDeleteCandidates(url: string) {
   const trimmed = url.trim();
   const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
@@ -505,6 +514,72 @@ export async function deleteCompetitor(url: string) {
   const store = await readStore();
   store.competitors = store.competitors.filter((competitor) => !candidates.includes(competitor.url));
   return writeStore(store);
+}
+
+export async function resetWorkspaceStore() {
+  if (isSupabaseConfigured() && !supabaseUnavailable) {
+    try {
+      const supabase = getSupabaseClient();
+      const [competitorsResult, reportsResult, scanJobsResult] = await Promise.all([
+        supabase.from('cih_competitors').delete().neq('url', '__andwell_never_match__'),
+        supabase.from('cih_reports').delete().neq('id', '__andwell_never_match__'),
+        supabase.from('cih_scan_jobs').delete().neq('id', '__andwell_never_match__')
+      ]);
+      assertSupabase('clear competitors', competitorsResult.error);
+      assertSupabase('clear reports', reportsResult.error);
+      assertSupabase('clear scan jobs', scanJobsResult.error);
+      await Promise.all([
+        optionalSupabaseDeleteAll('cih_evidence_items', 'id'),
+        optionalSupabaseDeleteAll('cih_source_snapshots', 'id'),
+        optionalSupabaseDeleteAll('cih_package_metrics', 'report_id'),
+        optionalSupabaseDeleteAll('cih_market_signals', 'id')
+      ]);
+      return readStore();
+    } catch (error) {
+      supabaseUnavailable = true;
+      logPersistenceFallback('Supabase', error);
+    }
+  }
+
+  if (isMongoConfigured() && !mongoUnavailable) {
+    try {
+      const [competitorsCol, reportsCol, scanJobsCol, evidenceCol, snapshotsCol, metricsCol, marketCol] = await Promise.all([
+        collection<CompetitorInput>('competitors'),
+        collection<IntelligenceReport>('reports'),
+        collection<AnalyzeJob>('scanJobs'),
+        collection<EvidenceItem>('evidenceItems'),
+        collection<SourceSnapshot>('sourceSnapshots'),
+        collection<PackageMetrics>('packageMetrics'),
+        collection<MarketSignal>('marketSignals')
+      ]);
+      await Promise.all([
+        competitorsCol.deleteMany({}),
+        reportsCol.deleteMany({}),
+        scanJobsCol.deleteMany({}),
+        evidenceCol.deleteMany({}),
+        snapshotsCol.deleteMany({}),
+        metricsCol.deleteMany({}),
+        marketCol.deleteMany({})
+      ]);
+      return readStore();
+    } catch (error) {
+      mongoUnavailable = true;
+      logPersistenceFallback('MongoDB', error);
+    }
+  }
+
+  const store = await readStore();
+  const nextStore: HubStore = {
+    ...store,
+    competitors: [],
+    reports: [],
+    scanJobs: [],
+    evidenceItems: [],
+    sourceSnapshots: [],
+    packageMetrics: [],
+    marketSignals: []
+  };
+  return writeStore(nextStore);
 }
 
 export async function saveReport(report: IntelligenceReport) {
