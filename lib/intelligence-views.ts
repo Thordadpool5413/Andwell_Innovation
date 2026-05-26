@@ -104,6 +104,23 @@ function inferAreaFromReportText(text: string) {
   return hit === 'maine' ? 'Maine Statewide' : hit.charAt(0).toUpperCase() + hit.slice(1);
 }
 
+function areaFromProviderEnrichment(report: IntelligenceReport, analysisName: string, analysisUrl: string) {
+  const enrichment = report.providerEnrichment?.find((item) =>
+    item.competitorUrl === analysisUrl || item.competitorName.toLowerCase() === analysisName.toLowerCase()
+  );
+  const best = enrichment?.matches.find((match) => match.city && match.state);
+  if (!best) return null;
+  return {
+    area: `${best.city}, ${best.state}`,
+    confidence: Math.max(45, Math.min(100, best.confidence || enrichment?.bestMatchConfidence || 50)),
+    sourceToAdd: best.source === 'cms_hospice'
+      ? 'Hospice Care Compare profile and service area pages'
+      : best.source === 'cms_home_health'
+        ? 'Home Health Care Compare profile and service area pages'
+        : 'NPPES profile and direct provider location pages'
+  };
+}
+
 export function buildGrowthMap(report: IntelligenceReport | null, matrix: AdvantageMatrix): GrowthMap {
   if (!report) {
     return { areas: [{ area: 'Evidence Limited', signal: 'Evidence Limited', growthOpportunityScore: 60, saturationScore: 20, andwellAdvantageScore: 50, referralSourcePotential: 55, partnershipPotential: 58, payerValuePotential: 62, evidenceConfidence: 30, fieldFocusPriority: 45, competitors: [], capabilities: andwellCatalog.slice(0, 5).map((s) => s.serviceLine), safeTalkTrack: 'Add public competitor sources to build a stronger geographic intelligence package.', avoidLanguage: 'Do not claim market coverage without source evidence.', nextMove: 'Add competitor pages with location and service detail.', sourceToAdd: 'Competitor service area pages' }], summary: { topGrowthAreas: [], saturatedAreas: [], fieldFocusZones: [], partnershipAreas: [], evidenceLimitedAreas: ['Evidence Limited'], geographicSignals: 0 } };
@@ -116,7 +133,8 @@ export function buildGrowthMap(report: IntelligenceReport | null, matrix: Advant
   });
   for (const analysis of report.analyses) {
     const text = `${analysis.market} ${analysis.url} ${analysis.findings.map((f) => f.evidenceExcerpt).join(' ')}`;
-    const area = inferAreaFromReportText(text);
+    const providerArea = areaFromProviderEnrichment(report, analysis.name, analysis.url);
+    const area = providerArea?.area || inferAreaFromReportText(text);
     const existing = areaMap.get(area);
     const capabilities = [...new Set(analysis.findings.map((f) => f.serviceLine).filter(Boolean))];
     const overlap = analysis.findings.filter((f) => f.competitorStatus === 'Clearly offered').length;
@@ -124,7 +142,7 @@ export function buildGrowthMap(report: IntelligenceReport | null, matrix: Advant
     const growthOpportunityScore = clamp(55 + advantage * 4 - overlap * 2);
     const saturationScore = clamp(20 + overlap * 6);
     const evidenceConfidence = clamp(30 + analysis.findings.filter((f) => f.sourceUrl).length * 5);
-    const geoConfidence = signalByArea.get(area) || 0;
+    const geoConfidence = Math.max(signalByArea.get(area) || 0, providerArea?.confidence || 0);
     const candidate: MarketArea = {
       area,
       signal: area === 'Evidence Limited' ? 'Evidence Limited' : overlap > 8 ? 'Competitive Battleground' : growthOpportunityScore > 72 ? 'High Growth Opportunity' : 'Field Focus Zone',
@@ -141,7 +159,7 @@ export function buildGrowthMap(report: IntelligenceReport | null, matrix: Advant
       safeTalkTrack: `Current source evidence suggests ${area} is a practical focus area when the referral need aligns with Andwell capability depth.`,
       avoidLanguage: 'Do not claim guaranteed growth or competitor absence in this area.',
       nextMove: 'Use matrix-backed service differentiation and field-safe language in local outreach.',
-      sourceToAdd: 'Competitor service-area or location pages'
+      sourceToAdd: providerArea?.sourceToAdd || 'Competitor service-area or location pages'
     };
     if (!existing) areaMap.set(area, candidate);
     else {

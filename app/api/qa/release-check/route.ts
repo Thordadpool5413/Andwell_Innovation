@@ -22,7 +22,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     route: '/api/qa/release-check',
-    expectedFingerprint: 'andwell-innovation-main-plugin-governed-intelligence',
+    expectedFingerprint: 'andwell-innovation-canonical-package-ui-recovery',
     requiredScripts: [
       'npm run typecheck',
       'npm run build:strict',

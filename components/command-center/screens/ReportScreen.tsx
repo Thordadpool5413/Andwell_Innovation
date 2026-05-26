@@ -6,9 +6,22 @@ import type { AdvantageMatrix, GrowthMap } from '../../../lib/intelligence-views
 import type { IntelligenceReport } from '../../../lib/types';
 import { fetchBriefingExport } from '../api';
 import type { ReviewableFinding } from '../model';
+import type { IntelligenceDisplayModel } from '../intelligence-display';
 import { Button, EmptyState, formatDate, number } from '../ui';
 
-export function ReportScreenView({ report, approvedItems, growthMap, matrix }: { report: IntelligenceReport | null; approvedItems: ReviewableFinding[]; growthMap: GrowthMap; matrix: AdvantageMatrix }) {
+export function ReportScreenView({
+  report,
+  approvedItems,
+  growthMap,
+  matrix,
+  display
+}: {
+  report: IntelligenceReport | null;
+  approvedItems: ReviewableFinding[];
+  growthMap: GrowthMap;
+  matrix: AdvantageMatrix;
+  display: IntelligenceDisplayModel;
+}) {
   const [exportState, setExportState] = useState('');
 
   if (!report) {
@@ -20,8 +33,8 @@ export function ReportScreenView({ report, approvedItems, growthMap, matrix }: {
       />
     );
   }
-  const topFindings = approvedItems.slice(0, 5);
-  const topArea = growthMap.areas[0];
+  const topFindings = display.fieldGuidance.slice(0, 6);
+  const topArea = display.territories[0];
 
   async function getBriefing() {
     const payload = await fetchBriefingExport(report?.id);
@@ -66,7 +79,7 @@ export function ReportScreenView({ report, approvedItems, growthMap, matrix }: {
           <div>
             <p className="cc-section-label">Leadership output</p>
             <h2>Andwell Intelligence Report</h2>
-            <p>{report.executiveSummary}</p>
+            <p>{display.executive.summary}</p>
           </div>
           <div className="cc-report-actions">
             <Button variant="secondary" onClick={copyBriefing}><Copy size={16} /> Copy Briefing</Button>
@@ -77,20 +90,22 @@ export function ReportScreenView({ report, approvedItems, growthMap, matrix }: {
         </header>
 
         <section className="cc-report-kpi-band">
-          <article><strong>{report.competitorsAnalyzed}</strong><span>Competitors analyzed</span></article>
-          <article><strong>{number(report.pagesReviewed)}</strong><span>Public pages reviewed</span></article>
+          <article><strong>{display.package.competitors}</strong><span>Competitors analyzed</span></article>
+          <article><strong>{number(display.package.pages)}</strong><span>Public pages reviewed</span></article>
           <article><strong>{matrix.summary.capabilitiesMapped}</strong><span>Capabilities mapped</span></article>
-          <article><strong>{approvedItems.length}</strong><span>Source-backed outputs</span></article>
+          <article><strong>{number(display.package.evidencePoints)}</strong><span>Evidence items</span></article>
           <article><strong>{formatDate(report.generatedAt)}</strong><span>Package date</span></article>
         </section>
 
         <section className="cc-report-two-col">
-          <ReportSection title="Market signal" body={report.expertBrief?.marketPosture || `Public source evidence was reviewed across ${report.competitorsAnalyzed} competitors and ${report.pagesReviewed} pages.`} />
-          <ReportSection title="Andwell opportunity" body={topArea ? `${topArea.area}: ${topArea.safeTalkTrack}` : 'The opportunity model is ready to strengthen as more public source material is added.'} />
-          <ReportSection title="Advantage Matrix summary" body={`${matrix.summary.capabilitiesMapped} capabilities mapped, ${matrix.summary.advantageSignals} Andwell advantage signals, and ${matrix.summary.evidenceLimited} evidence-limited cells.`} />
-          <ReportSection title="Growth Map summary" body={`${growthMap.summary.fieldFocusZones.join(', ') || 'Field focus zones will rank after additional source evidence.'}`} />
-          <ReportSection title="Payer value angle" body={topArea ? `Payer value potential is scored at ${topArea.payerValuePotential} for ${topArea.area}; use guarded language and connect to complex care management.` : 'Payer value angle should remain tied to source-backed care complexity evidence.'} />
-          <ReportSection title="Partnership opportunity" body={topArea ? `Partnership potential is scored at ${topArea.partnershipPotential}; focus on care transitions, post acute relationships, and high acuity community care fit.` : 'Partnership opportunities will strengthen with hospital, payer, and service area source detail.'} />
+          <ReportSection title="Market signal" body={display.executive.marketSignal} />
+          <ReportSection title="Andwell opportunity" body={display.executive.andwellOpportunity} />
+          <ReportSection title="Advantage Matrix summary" body={display.executive.matrixSummary} />
+          <ReportSection title="Growth Map summary" body={display.executive.growthMapSummary} />
+          <ReportSection title="Evidence reviewed" body={display.executive.evidenceReviewed} />
+          <ReportSection title="Strategic implications" body={display.executive.strategicImplications} />
+          <ReportSection title="Payer value angle" body={topArea ? `Payer value potential is scored at ${topArea.scores.payer} for ${topArea.area}; use guarded language and connect to complex care management.` : 'Payer value angle should remain tied to source-backed care complexity evidence.'} />
+          <ReportSection title="Partnership opportunity" body={topArea ? `Partnership potential is scored at ${topArea.scores.partnership}; focus on care transitions, post acute relationships, and high acuity community care fit.` : 'Partnership opportunities will strengthen with hospital, payer, and service area source detail.'} />
         </section>
 
         <section className="cc-report-section-premium">
@@ -104,10 +119,10 @@ export function ReportScreenView({ report, approvedItems, growthMap, matrix }: {
           <div className="cc-report-guidance-grid">
             {topFindings.map((item) => (
               <article key={item.id}>
-                <strong>{item.serviceLine}</strong>
-                <span>{item.competitorName}</span>
-                <p>{item.safeSalesWording}</p>
-                <small>Do not say: {item.avoidSaying}</small>
+                <strong>{item.capability}</strong>
+                <span>{item.competitorName} | {item.marketArea}</span>
+                <p>{item.safeTalkTrack}</p>
+                <small>Do not say: {item.whatNotToSay}</small>
               </article>
             ))}
           </div>
@@ -122,7 +137,7 @@ export function ReportScreenView({ report, approvedItems, growthMap, matrix }: {
             <FileText size={20} />
           </div>
           <div className="cc-report-action-list">
-            {(report.recommendedActions?.length ? report.recommendedActions : [
+            {(display.executive.recommendedActions.length ? display.executive.recommendedActions.map((action, index) => ({ id: `${action.label}-${index}`, label: action.label, detail: action.detail, priority: action.priority })) : [
               { id: 'matrix', label: 'Use Advantage Matrix in referral strategy', detail: 'Lead with source-backed capability strengths.', target: 'strategy', priority: 'High' as const },
               { id: 'map', label: 'Focus field activity by Growth Map signal', detail: 'Prioritize high-opportunity and evidence-confident areas.', target: 'strategy', priority: 'High' as const },
               { id: 'guardrails', label: 'Keep all claims inside evidence guardrails', detail: 'Avoid unsupported competitor absence or superiority claims.', target: 'strategy', priority: 'Medium' as const }

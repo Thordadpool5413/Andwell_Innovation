@@ -57,7 +57,7 @@ export function BuildIntelligenceScreen({
             className="cc-textarea cc-build-textarea"
             value={sourceText}
             onChange={(event) => setSourceText(event.target.value)}
-            placeholder="https://competitor.org/services&#10;https://another-provider.org/home-health"
+            placeholder={'Provider Name | https://www.public-provider.org/services\nProvider Name - https://www.public-provider.org/home-health\nhttps://www.public-provider.org/hospice-care'}
           />
 
           <div className="cc-build-actions">

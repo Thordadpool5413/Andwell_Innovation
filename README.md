@@ -72,11 +72,15 @@ MONGODB_URI=
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 ANALYZE_MAX_COMPETITORS=25
+ANALYZE_CONCURRENCY=5
+ANALYZE_TOTAL_TIMEOUT_MS=110000
+ANALYZE_COMPETITOR_TIMEOUT_MS=35000
 ANALYZE_RATE_LIMIT=8
 ANALYZE_RATE_WINDOW_MS=900000
 ```
 
 Let Hostinger manage `PORT`. Do not set `HOST` to the public domain.
+On Vercel, prefer Supabase for persistence and do not set `CIH_DATA_DIR=.data`; the app uses runtime-safe temp storage only as a non-production fallback.
 
 ## GitHub To Hostinger
 
@@ -115,7 +119,7 @@ Deployment fingerprint:
 /api/version
 ```
 
-The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-plugin-governed-intelligence"`. If the live app does not show the executive Home canvas, full Advantage Matrix workspace, Growth Map workspace, Strategy playbook, Coach, and leadership report surfaces, the deployment is not serving this build.
+The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-canonical-package-ui-recovery"`. If the live app does not show the executive Home canvas, full Advantage Matrix workspace, Growth Map workspace, Strategy playbook, Coach, and leadership report surfaces, the deployment is not serving this build.
 
 ## Release Proof
 
