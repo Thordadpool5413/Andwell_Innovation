@@ -13,9 +13,11 @@ The app keeps the visible command center wired to real Next.js API routes. Supab
 - Full mockup-fidelity product surfaces for Advantage Matrix, Growth Map, Intelligence Library, Strategy, AI Coach, and Executive Report
 - Intelligence library powered by stored reports and built outputs
 - AI Intelligence Coach powered by `/api/ask` and stored evidence
-- Executive report preview with strategy, guardrails, and print support
-- Server-side APIs for analysis, competitors, reports, reviews (compatibility), catalog, diagnostics, runtime, health, version, enrichment, and intelligence rebuild checks
+- Executive report preview with strategy, guardrails, print support, briefing copy, and structured JSON export
+- Server-side APIs for analysis, competitors, reports, reviews (compatibility), catalog, diagnostics, runtime, health, version, enrichment, evidence, package metrics, briefing export, QA release checks, and intelligence rebuild checks
 - Supabase production persistence, with MongoDB/local JSON fallback
+- Additive Supabase intelligence tables for evidence items, source snapshots, package metrics, and market signals
+- GitHub release gate workflow with type/build/audit/API/browser QA checks and screenshot artifacts
 - Hostinger Node.js startup through `app.js`, which delegates to `server.js`
 
 ## Local Development
@@ -95,6 +97,10 @@ After deployment, check:
 /api/diagnostics
 /api/analyze
 /api/analyze/status
+/api/evidence
+/api/package-metrics
+/api/export/briefing
+/api/qa/release-check
 /api/enrich/providers
 /api/enrich/geography
 /api/intelligence/rebuild
@@ -109,7 +115,31 @@ Deployment fingerprint:
 /api/version
 ```
 
-The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-full-app-mockup-completion"`. If the live app does not show the executive Home canvas, full Advantage Matrix workspace, Growth Map workspace, Strategy playbook, Coach, and leadership report surfaces, the deployment is not serving this build.
+The response should include `repository: "Thordadpool5413/Andwell_Innovation"` and `buildFingerprint: "andwell-innovation-main-plugin-governed-intelligence"`. If the live app does not show the executive Home canvas, full Advantage Matrix workspace, Growth Map workspace, Strategy playbook, Coach, and leadership report surfaces, the deployment is not serving this build.
+
+## Release Proof
+
+Before deploying, run:
+
+```bash
+npm run typecheck
+npm run build:strict
+npm run build
+npm audit --omit=dev
+```
+
+With a production server running locally, also run:
+
+```bash
+npm run qa:api
+npm run qa:ui
+```
+
+The GitHub `Release Gate` workflow runs the same checks, captures desktop/mobile screenshots, verifies JSON API behavior, and fails when user-facing screens expose technical language or horizontal overflow.
+
+## Plugin Governance
+
+See `docs/plugin-governance.md` for the Figma design system target, Supabase intelligence table policy, AI output quality checks, GitHub release gates, Browser QA standards, Canva-ready briefing export, and optional Cloudflare reliability layer.
 
 ## Safety Rule
 

@@ -11,6 +11,8 @@
     "build:hostinger": "npm run build",
     "build:strict": "npm run clean:next && cross-env CIH_STRICT_BUILD=1 NEXT_DISABLE_WEBPACK_CACHE=1 next build",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "qa:api": "node scripts/api-smoke.mjs",
+    "qa:ui": "node scripts/ui-qa-client.mjs",
     "start": "node app.js",
     "serve": "node app.js",
     "hostinger:start": "node app.js",

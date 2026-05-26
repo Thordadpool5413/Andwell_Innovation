@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateAIGovernanceSummary } from '../../../lib/intelligence-policy';
+import { materializeReportIntelligence } from '../../../lib/report-materialization';
 import { getReport, readStore } from '../../../lib/store';
 
 export const runtime = 'nodejs';
@@ -15,7 +16,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ report });
     }
     const store = await readStore();
-    const reports = (store.reports || []).map((report) => {
+    const reports = (store.reports || []).map((sourceReport) => {
+      const report = materializeReportIntelligence(sourceReport);
       const safeGovernance = report.aiGovernance || calculateAIGovernanceSummary(report);
       return {
         id: report.id,

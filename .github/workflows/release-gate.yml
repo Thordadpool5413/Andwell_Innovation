@@ -1,0 +1,72 @@
+name: Release Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      UI_QA_BASE_URL: http://127.0.0.1:4401
+      API_SMOKE_BASE_URL: http://127.0.0.1:4401
+      PORT: '4401'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Strict build
+        run: npm run build:strict
+
+      - name: Production build
+        run: npm run build
+
+      - name: Security audit
+        run: npm audit --omit=dev
+
+      - name: Start production server
+        run: |
+          mkdir -p .codex-run
+          npm start > .codex-run/server.log 2>&1 &
+          echo $! > .codex-run/server.pid
+          for i in {1..60}; do
+            if curl -fsS "$UI_QA_BASE_URL/api/health" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat .codex-run/server.log
+          exit 1
+
+      - name: API smoke checks
+        run: npm run qa:api
+
+      - name: Browser QA screenshots
+        run: npm run qa:ui
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-artifacts
+          path: |
+            .codex-run/ui-qa
+            .codex-run/api-smoke
+            .codex-run/server.log

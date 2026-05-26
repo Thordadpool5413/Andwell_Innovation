@@ -1,0 +1,38 @@
+{
+  "designFile": "Andwell Intelligence Engine - Product System",
+  "mappings": [
+    {
+      "figmaComponent": "Navigation Rail",
+      "code": "components/command-center/AppShell.tsx"
+    },
+    {
+      "figmaComponent": "Executive Home Canvas",
+      "code": "components/command-center/screens/HomeScreen.tsx"
+    },
+    {
+      "figmaComponent": "Dark Intelligence Cockpit",
+      "code": "components/command-center/screens/BuildIntelligenceScreen.tsx"
+    },
+    {
+      "figmaComponent": "Advantage Matrix Cell",
+      "code": "components/command-center/screens/MatrixScreen.tsx"
+    },
+    {
+      "figmaComponent": "Growth Map Area Panel",
+      "code": "components/command-center/screens/GrowthMapScreen.tsx"
+    },
+    {
+      "figmaComponent": "Confidence Bar",
+      "code": "components/command-center/ui.tsx"
+    },
+    {
+      "figmaComponent": "Evidence Card",
+      "code": "components/command-center/screens/LibraryScreen.tsx"
+    },
+    {
+      "figmaComponent": "Report Block",
+      "code": "components/command-center/screens/ReportScreen.tsx"
+    }
+  ],
+  "releaseRule": "Screens must pass Browser QA screenshots and forbidden-string checks before release."
+}

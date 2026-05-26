@@ -149,3 +149,8 @@ export async function askHub(question: string, reportId?: string) {
     body: { question, reportId }
   });
 }
+
+export async function fetchBriefingExport(reportId?: string) {
+  const query = reportId ? `?reportId=${encodeURIComponent(reportId)}` : '';
+  return apiFetch<{ briefing: unknown | null; message?: string }>(`/api/export/briefing${query}`);
+}

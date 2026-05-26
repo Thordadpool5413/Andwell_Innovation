@@ -69,7 +69,7 @@ function clampScore(value: unknown) {
 }
 
 function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtraction {
-  return {
+  const normalized: AICompetitorExtraction = {
     providerName: safeText(raw?.providerName, providerName(input)),
     aiModel: safeText(raw?.aiModel, defaultModel),
     generatedAt: new Date().toISOString(),
@@ -116,6 +116,64 @@ function normalizeExtraction(raw: any, input: CompetitorInput): AICompetitorExtr
       doNotSayLanguage: safeText(item?.doNotSayLanguage, 'Do not say the competitor does not offer a service unless confirmed by source evidence.')
     })) : [],
     rawConfidence: ['High', 'Medium', 'Low'].includes(String(raw?.rawConfidence)) ? raw.rawConfidence : 'Low'
+  };
+  return applyExtractionQualityGuards(normalized);
+}
+
+function hasUnsupportedSuperiority(text: string) {
+  const normalized = text.toLowerCase();
+  return [
+    'andwell is better',
+    'proves andwell wins',
+    'they cannot provide',
+    'competitor does not offer',
+    'does not offer this',
+    'guaranteed growth'
+  ].some((phrase) => normalized.includes(phrase));
+}
+
+function applyExtractionQualityGuards(extraction: AICompetitorExtraction): AICompetitorExtraction {
+  const risks = new Set(extraction.reviewRisks);
+  const subserviceDepth = extraction.subserviceDepth.map((item) => {
+    const lacksCitation = !item.sourceUrl && item.status !== 'Not found publicly';
+    const lacksExcerpt = !item.evidenceExcerpt || item.evidenceExcerpt === 'No evidence excerpt returned by AI.';
+    if (lacksCitation) risks.add(`${item.serviceLine} | ${item.subservice}: citation should be strengthened before confident use.`);
+    if (lacksExcerpt) risks.add(`${item.serviceLine} | ${item.subservice}: evidence excerpt should be strengthened.`);
+    if (hasUnsupportedSuperiority(`${item.safeSalesLanguage} ${item.doNotSayLanguage}`)) risks.add(`${item.serviceLine} | ${item.subservice}: unsafe competitive language was detected and should stay guarded.`);
+    return {
+      ...item,
+      confidence: (lacksCitation || lacksExcerpt) && item.confidence === 'High' ? 'Moderate' as const : item.confidence,
+      safeSalesLanguage: hasUnsupportedSuperiority(item.safeSalesLanguage)
+        ? 'Use source-backed capability language and avoid unsupported superiority claims.'
+        : item.safeSalesLanguage,
+      doNotSayLanguage: item.doNotSayLanguage || 'Do not overstate competitor differences without source evidence.'
+    };
+  });
+  const serviceLineDepth = extraction.serviceLineDepth.map((item) => {
+    const hasProof = item.proofPoints.length > 0;
+    if (!hasProof && item.evidenceStrength === 'Strong') risks.add(`${item.serviceLine}: strong evidence should include proof points.`);
+    return {
+      ...item,
+      evidenceStrength: !hasProof && item.evidenceStrength === 'Strong' ? 'Moderate' as const : item.evidenceStrength
+    };
+  });
+  const unsafeTopLevel = [
+    extraction.leadershipSummary,
+    ...extraction.safeSalesLanguage,
+    ...extraction.competitorAdvantages,
+    ...extraction.andwellAdvantages
+  ].some(hasUnsupportedSuperiority);
+  if (unsafeTopLevel) risks.add('Top-level AI output included language that should remain guarded.');
+  const hasCitationGap = subserviceDepth.some((item) => !item.sourceUrl && item.status !== 'Not found publicly');
+  const rawConfidence = unsafeTopLevel || hasCitationGap
+    ? (extraction.rawConfidence === 'High' ? 'Medium' : extraction.rawConfidence)
+    : extraction.rawConfidence;
+  return {
+    ...extraction,
+    serviceLineDepth,
+    subserviceDepth,
+    rawConfidence,
+    reviewRisks: [...risks].slice(0, 40)
   };
 }
 

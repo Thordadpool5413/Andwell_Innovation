@@ -3,8 +3,18 @@ import os from 'os';
 import path from 'path';
 import type { Collection } from 'mongodb';
 import { getMongoDb, isMongoConfigured } from './mongodb';
+import { materializeReportIntelligence } from './report-materialization';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
-import type { AnalyzeJob, CompetitorInput, IntelligenceReport, ReviewStatus } from './types';
+import type {
+  AnalyzeJob,
+  CompetitorInput,
+  EvidenceItem,
+  IntelligenceReport,
+  MarketSignal,
+  PackageMetrics,
+  ReviewStatus,
+  SourceSnapshot
+} from './types';
 
 export type StoredReview = {
   id: string;
@@ -33,6 +43,10 @@ export type HubStore = {
   scanJobs: AnalyzeJob[];
   reviews: StoredReview[];
   catalogOverrides: CatalogOverride[];
+  evidenceItems: EvidenceItem[];
+  sourceSnapshots: SourceSnapshot[];
+  packageMetrics: PackageMetrics[];
+  marketSignals: MarketSignal[];
 };
 
 function cleanEnvValue(value?: string) {
@@ -54,7 +68,11 @@ const emptyStore = (): HubStore => ({
   reports: [],
   scanJobs: [],
   reviews: [],
-  catalogOverrides: []
+  catalogOverrides: [],
+  evidenceItems: [],
+  sourceSnapshots: [],
+  packageMetrics: [],
+  marketSignals: []
 });
 
 function candidateStoreFiles() {
@@ -91,12 +109,16 @@ async function collection<T extends object>(name: string): Promise<Collection<T>
 }
 
 async function mongoReadStore(): Promise<HubStore> {
-  const [competitors, reports, scanJobs, reviews, catalogOverrides] = await Promise.all([
+  const [competitors, reports, scanJobs, reviews, catalogOverrides, evidenceItems, sourceSnapshots, packageMetrics, marketSignals] = await Promise.all([
     collection<CompetitorInput>('competitors').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ name: 1 }).toArray()),
     collection<IntelligenceReport>('reports').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ generatedAt: -1 }).limit(100).toArray()),
     collection<AnalyzeJob>('scanJobs').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).limit(1000).toArray()),
     collection<StoredReview>('reviews').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(10000).toArray()),
-    collection<CatalogOverride>('catalogOverrides').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ serviceLine: 1 }).toArray())
+    collection<CatalogOverride>('catalogOverrides').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ serviceLine: 1 }).toArray()),
+    collection<EvidenceItem>('evidenceItems').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ generatedAt: -1 }).limit(20000).toArray()),
+    collection<SourceSnapshot>('sourceSnapshots').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ capturedAt: -1 }).limit(10000).toArray()),
+    collection<PackageMetrics>('packageMetrics').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ generatedAt: -1 }).limit(1000).toArray()),
+    collection<MarketSignal>('marketSignals').then((col) => col.find({}, { projection: { _id: 0 } }).sort({ generatedAt: -1 }).limit(10000).toArray())
   ]);
 
   return {
@@ -106,7 +128,11 @@ async function mongoReadStore(): Promise<HubStore> {
     reports,
     scanJobs,
     reviews,
-    catalogOverrides
+    catalogOverrides,
+    evidenceItems,
+    sourceSnapshots,
+    packageMetrics,
+    marketSignals
   };
 }
 
@@ -114,14 +140,42 @@ function assertSupabase(action: string, error: { message: string } | null) {
   if (error) throw new Error(`Supabase ${action} failed: ${error.message}`);
 }
 
+async function optionalSupabasePayloadList<T>(table: string, orderColumn: string, limit: number): Promise<T[]> {
+  try {
+    const result = await getSupabaseClient().from(table).select('payload').order(orderColumn, { ascending: false }).limit(limit);
+    if (result.error) {
+      console.warn(`Optional Supabase table ${table} is unavailable: ${result.error.message}`);
+      return [];
+    }
+    return (result.data || []).map((row) => row.payload as T);
+  } catch (error) {
+    console.warn(`Optional Supabase table ${table} could not be read.`, error);
+    return [];
+  }
+}
+
 async function supabaseReadStore(): Promise<HubStore> {
   const supabase = getSupabaseClient();
-  const [competitorsResult, reportsResult, scanJobsResult, reviewsResult, catalogResult] = await Promise.all([
+  const [
+    competitorsResult,
+    reportsResult,
+    scanJobsResult,
+    reviewsResult,
+    catalogResult,
+    evidenceItems,
+    sourceSnapshots,
+    packageMetrics,
+    marketSignals
+  ] = await Promise.all([
     supabase.from('cih_competitors').select('payload').order('name', { ascending: true }).limit(500),
     supabase.from('cih_reports').select('payload').order('generated_at', { ascending: false }).limit(100),
     supabase.from('cih_scan_jobs').select('payload').order('created_at', { ascending: false }).limit(1000),
     supabase.from('cih_reviews').select('payload').order('updated_at', { ascending: false }).limit(10000),
-    supabase.from('cih_catalog_overrides').select('payload').order('service_line', { ascending: true })
+    supabase.from('cih_catalog_overrides').select('payload').order('service_line', { ascending: true }),
+    optionalSupabasePayloadList<EvidenceItem>('cih_evidence_items', 'generated_at', 20000),
+    optionalSupabasePayloadList<SourceSnapshot>('cih_source_snapshots', 'captured_at', 10000),
+    optionalSupabasePayloadList<PackageMetrics>('cih_package_metrics', 'generated_at', 1000),
+    optionalSupabasePayloadList<MarketSignal>('cih_market_signals', 'generated_at', 10000)
   ]);
 
   assertSupabase('read competitors', competitorsResult.error);
@@ -137,7 +191,11 @@ async function supabaseReadStore(): Promise<HubStore> {
     reports: (reportsResult.data || []).map((row) => row.payload as IntelligenceReport),
     scanJobs: (scanJobsResult.data || []).map((row) => row.payload as AnalyzeJob),
     reviews: (reviewsResult.data || []).map((row) => row.payload as StoredReview),
-    catalogOverrides: (catalogResult.data || []).map((row) => row.payload as CatalogOverride)
+    catalogOverrides: (catalogResult.data || []).map((row) => row.payload as CatalogOverride),
+    evidenceItems,
+    sourceSnapshots,
+    packageMetrics,
+    marketSignals
   };
 }
 
@@ -157,7 +215,11 @@ async function jsonReadStore(): Promise<HubStore> {
       reports: parsed.reports || [],
       scanJobs: parsed.scanJobs || [],
       reviews: parsed.reviews || [],
-      catalogOverrides: parsed.catalogOverrides || []
+      catalogOverrides: parsed.catalogOverrides || [],
+      evidenceItems: parsed.evidenceItems || [],
+      sourceSnapshots: parsed.sourceSnapshots || [],
+      packageMetrics: parsed.packageMetrics || [],
+      marketSignals: parsed.marketSignals || []
     };
   } catch {
     const initial = emptyStore();
@@ -218,12 +280,16 @@ export async function writeStore(store: HubStore) {
   if (!isMongoConfigured() || mongoUnavailable) return jsonWriteStore(store);
 
   try {
-    const [competitorsCol, reportsCol, scanJobsCol, reviewsCol, catalogCol] = await Promise.all([
+    const [competitorsCol, reportsCol, scanJobsCol, reviewsCol, catalogCol, evidenceCol, snapshotsCol, metricsCol, marketCol] = await Promise.all([
       collection<CompetitorInput>('competitors'),
       collection<IntelligenceReport>('reports'),
       collection<AnalyzeJob>('scanJobs'),
       collection<StoredReview>('reviews'),
-      collection<CatalogOverride>('catalogOverrides')
+      collection<CatalogOverride>('catalogOverrides'),
+      collection<EvidenceItem>('evidenceItems'),
+      collection<SourceSnapshot>('sourceSnapshots'),
+      collection<PackageMetrics>('packageMetrics'),
+      collection<MarketSignal>('marketSignals')
     ]);
 
     await Promise.all([
@@ -231,7 +297,11 @@ export async function writeStore(store: HubStore) {
       reportsCol.deleteMany({}),
       scanJobsCol.deleteMany({}),
       reviewsCol.deleteMany({}),
-      catalogCol.deleteMany({})
+      catalogCol.deleteMany({}),
+      evidenceCol.deleteMany({}),
+      snapshotsCol.deleteMany({}),
+      metricsCol.deleteMany({}),
+      marketCol.deleteMany({})
     ]);
 
     await Promise.all([
@@ -239,7 +309,11 @@ export async function writeStore(store: HubStore) {
       store.reports.length ? reportsCol.insertMany(store.reports) : Promise.resolve(),
       store.scanJobs.length ? scanJobsCol.insertMany(store.scanJobs) : Promise.resolve(),
       store.reviews.length ? reviewsCol.insertMany(store.reviews) : Promise.resolve(),
-      store.catalogOverrides.length ? catalogCol.insertMany(store.catalogOverrides) : Promise.resolve()
+      store.catalogOverrides.length ? catalogCol.insertMany(store.catalogOverrides) : Promise.resolve(),
+      store.evidenceItems.length ? evidenceCol.insertMany(store.evidenceItems) : Promise.resolve(),
+      store.sourceSnapshots.length ? snapshotsCol.insertMany(store.sourceSnapshots) : Promise.resolve(),
+      store.packageMetrics.length ? metricsCol.insertMany(store.packageMetrics) : Promise.resolve(),
+      store.marketSignals.length ? marketCol.insertMany(store.marketSignals) : Promise.resolve()
     ]);
 
     return { ...store, updatedAt: new Date().toISOString() };
@@ -292,6 +366,62 @@ function scanJobRow(job: AnalyzeJob) {
     payload: job,
     updated_at: new Date().toISOString()
   };
+}
+
+function evidenceItemRow(item: EvidenceItem) {
+  return {
+    id: item.id,
+    report_id: item.reportId,
+    generated_at: item.generatedAt,
+    competitor_name: item.competitorName,
+    service_line: item.serviceLine,
+    payload: item,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function sourceSnapshotRow(item: SourceSnapshot) {
+  return {
+    id: item.id,
+    report_id: item.reportId,
+    captured_at: item.capturedAt,
+    competitor_name: item.competitorName,
+    page_url: item.pageUrl,
+    payload: item,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function packageMetricRow(item: PackageMetrics) {
+  return {
+    report_id: item.reportId,
+    generated_at: item.generatedAt,
+    quality_score: item.qualityScore,
+    payload: item,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function marketSignalRow(item: MarketSignal) {
+  return {
+    id: item.id,
+    report_id: item.reportId,
+    generated_at: item.generatedAt,
+    area_name: item.areaName,
+    signal: item.signal,
+    payload: item,
+    updated_at: new Date().toISOString()
+  };
+}
+
+async function optionalSupabaseUpsert(table: string, rows: object[], onConflict: string) {
+  if (!rows.length) return;
+  try {
+    const result = await getSupabaseClient().from(table).upsert(rows, { onConflict });
+    if (result.error) console.warn(`Optional Supabase upsert ${table} failed: ${result.error.message}`);
+  } catch (error) {
+    console.warn(`Optional Supabase upsert ${table} could not complete.`, error);
+  }
 }
 
 function urlDeleteCandidates(url: string) {
@@ -378,16 +508,23 @@ export async function deleteCompetitor(url: string) {
 }
 
 export async function saveReport(report: IntelligenceReport) {
+  const enrichedReport = materializeReportIntelligence(report);
   if (isSupabaseConfigured() && !supabaseUnavailable) {
     try {
       const supabase = getSupabaseClient();
-      const reportResult = await supabase.from('cih_reports').upsert(reportRow(report), { onConflict: 'id' });
+      const reportResult = await supabase.from('cih_reports').upsert(reportRow(enrichedReport), { onConflict: 'id' });
       assertSupabase('upsert report', reportResult.error);
-      const reportCompetitors = report.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url, market: analysis.market }));
+      const reportCompetitors = enrichedReport.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url, market: analysis.market }));
       if (reportCompetitors.length) {
         const competitorsResult = await supabase.from('cih_competitors').upsert(reportCompetitors.map(competitorRow), { onConflict: 'url' });
         assertSupabase('upsert report competitors', competitorsResult.error);
       }
+      await Promise.all([
+        optionalSupabaseUpsert('cih_evidence_items', (enrichedReport.evidenceItems || []).map(evidenceItemRow), 'id'),
+        optionalSupabaseUpsert('cih_source_snapshots', (enrichedReport.sourceSnapshots || []).map(sourceSnapshotRow), 'id'),
+        enrichedReport.packageMetrics ? optionalSupabaseUpsert('cih_package_metrics', [packageMetricRow(enrichedReport.packageMetrics)], 'report_id') : Promise.resolve(),
+        optionalSupabaseUpsert('cih_market_signals', (enrichedReport.marketSignals || []).map(marketSignalRow), 'id')
+      ]);
       return readStore();
     } catch (error) {
       supabaseUnavailable = true;
@@ -399,9 +536,19 @@ export async function saveReport(report: IntelligenceReport) {
     try {
       const reportsCol = await collection<IntelligenceReport>('reports');
       const competitorsCol = await collection<CompetitorInput>('competitors');
-      await reportsCol.updateOne({ id: report.id }, { $set: report }, { upsert: true });
-      const reportCompetitors = report.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url, market: analysis.market }));
+      const evidenceCol = await collection<EvidenceItem>('evidenceItems');
+      const snapshotsCol = await collection<SourceSnapshot>('sourceSnapshots');
+      const metricsCol = await collection<PackageMetrics>('packageMetrics');
+      const marketCol = await collection<MarketSignal>('marketSignals');
+      await reportsCol.updateOne({ id: enrichedReport.id }, { $set: enrichedReport }, { upsert: true });
+      const reportCompetitors = enrichedReport.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url, market: analysis.market }));
       await Promise.all(reportCompetitors.map((competitor) => competitorsCol.updateOne({ url: competitor.url }, { $set: competitor }, { upsert: true })));
+      await Promise.all([
+        ...(enrichedReport.evidenceItems || []).map((item) => evidenceCol.updateOne({ id: item.id }, { $set: item }, { upsert: true })),
+        ...(enrichedReport.sourceSnapshots || []).map((item) => snapshotsCol.updateOne({ id: item.id }, { $set: item }, { upsert: true })),
+        enrichedReport.packageMetrics ? metricsCol.updateOne({ reportId: enrichedReport.id }, { $set: enrichedReport.packageMetrics }, { upsert: true }) : Promise.resolve(),
+        ...(enrichedReport.marketSignals || []).map((item) => marketCol.updateOne({ id: item.id }, { $set: item }, { upsert: true }))
+      ]);
       return readStore();
     } catch (error) {
       mongoUnavailable = true;
@@ -410,9 +557,15 @@ export async function saveReport(report: IntelligenceReport) {
   }
 
   const store = await readStore();
-  const nextReports = [report, ...store.reports.filter((item) => item.id !== report.id)].slice(0, 100);
+  const nextReports = [enrichedReport, ...store.reports.filter((item) => item.id !== enrichedReport.id)].slice(0, 100);
   store.reports = nextReports;
-  const reportCompetitors = report.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url, market: analysis.market }));
+  store.evidenceItems = [...(enrichedReport.evidenceItems || []), ...store.evidenceItems.filter((item) => item.reportId !== enrichedReport.id)].slice(0, 20000);
+  store.sourceSnapshots = [...(enrichedReport.sourceSnapshots || []), ...store.sourceSnapshots.filter((item) => item.reportId !== enrichedReport.id)].slice(0, 10000);
+  store.packageMetrics = enrichedReport.packageMetrics
+    ? [enrichedReport.packageMetrics, ...store.packageMetrics.filter((item) => item.reportId !== enrichedReport.id)].slice(0, 1000)
+    : store.packageMetrics;
+  store.marketSignals = [...(enrichedReport.marketSignals || []), ...store.marketSignals.filter((item) => item.reportId !== enrichedReport.id)].slice(0, 10000);
+  const reportCompetitors = enrichedReport.analyses.map((analysis) => ({ name: analysis.name, url: analysis.url, market: analysis.market }));
   const byUrl = new Map<string, CompetitorInput>();
   [...store.competitors, ...reportCompetitors].forEach((competitor) => {
     if (competitor.url) byUrl.set(competitor.url, competitor);
@@ -499,7 +652,7 @@ export async function getReport(reportId: string) {
         .eq('id', reportId)
         .maybeSingle();
       assertSupabase('get report', result.error);
-      return result.data ? result.data.payload as IntelligenceReport : null;
+      return result.data ? materializeReportIntelligence(result.data.payload as IntelligenceReport) : null;
     } catch (error) {
       supabaseUnavailable = true;
       logPersistenceFallback('Supabase', error);
@@ -509,7 +662,8 @@ export async function getReport(reportId: string) {
   if (isMongoConfigured() && !mongoUnavailable) {
     try {
       const col = await collection<IntelligenceReport>('reports');
-      return col.findOne({ id: reportId }, { projection: { _id: 0 } });
+      const report = await col.findOne({ id: reportId }, { projection: { _id: 0 } });
+      return report ? materializeReportIntelligence(report) : null;
     } catch (error) {
       mongoUnavailable = true;
       logPersistenceFallback('MongoDB', error);
@@ -517,7 +671,8 @@ export async function getReport(reportId: string) {
   }
 
   const store = await readStore();
-  return store.reports.find((report) => report.id === reportId) || null;
+  const report = store.reports.find((item) => item.id === reportId) || null;
+  return report ? materializeReportIntelligence(report) : null;
 }
 
 export async function saveReview(input: Omit<StoredReview, 'id' | 'updatedAt'> & { id?: string }) {

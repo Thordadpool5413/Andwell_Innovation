@@ -307,6 +307,81 @@ export type RecommendedAction = {
   priority: 'High' | 'Medium' | 'Low';
 };
 
+export type EvidenceItem = {
+  id: string;
+  reportId: string;
+  generatedAt: string;
+  competitorName: string;
+  competitorUrl?: string;
+  serviceLine: string;
+  subservice?: string;
+  evidenceStrength: EvidenceStrength;
+  confidence: Confidence;
+  sourceUrl?: string;
+  sourceTitle?: string;
+  excerpt: string;
+  safeLanguage: string;
+  avoidLanguage: string;
+  aiReliability: AIReliability;
+  recommendedUse: AIRecommendedUse;
+  fieldRisk: FieldRisk;
+};
+
+export type SourceSnapshot = {
+  id: string;
+  reportId: string;
+  capturedAt: string;
+  competitorName: string;
+  competitorUrl: string;
+  pageUrl: string;
+  title: string;
+  excerpt: string;
+  textLength: number;
+};
+
+export type PackageMetrics = {
+  reportId: string;
+  generatedAt: string;
+  competitorsAnalyzed: number;
+  pagesReviewed: number;
+  capabilitiesMapped: number;
+  evidenceItems: number;
+  sourceSnapshots: number;
+  marketAreas: number;
+  highReliabilityCount: number;
+  guardedUseCount: number;
+  investigateCount: number;
+  qualityScore: number;
+};
+
+export type MarketSignal = {
+  id: string;
+  reportId: string;
+  generatedAt: string;
+  areaName: string;
+  signal: string;
+  growthOpportunityScore: number;
+  saturationScore: number;
+  andwellAdvantageScore: number;
+  evidenceConfidence: number;
+  fieldFocusPriority: number;
+  competitors: string[];
+  capabilities: string[];
+  safeTalkTrack: string;
+  nextMove: string;
+};
+
+export type QualityCheck = {
+  id: string;
+  reportId: string;
+  generatedAt: string;
+  category: 'evidence' | 'claims' | 'citations' | 'field_language' | 'market_signal';
+  status: 'pass' | 'warning' | 'fail';
+  severity: 'low' | 'medium' | 'high';
+  title: string;
+  detail: string;
+};
+
 export type IntelligenceReport = {
   id: string;
   generatedAt: string;
@@ -338,6 +413,11 @@ export type IntelligenceReport = {
   providerEnrichment?: ProviderEnrichmentItem[];
   geographicSignals?: GeographicSignal[];
   externalDataSummary?: ExternalDataSummary;
+  evidenceItems?: EvidenceItem[];
+  sourceSnapshots?: SourceSnapshot[];
+  packageMetrics?: PackageMetrics;
+  marketSignals?: MarketSignal[];
+  qualityChecks?: QualityCheck[];
 };
 
 export type AnalyzeJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'timed_out';
