@@ -77,10 +77,14 @@ const emptyStore = (): HubStore => ({
 
 function candidateStoreFiles() {
   const candidates: string[] = [];
+  const tempStore = path.join(os.tmpdir(), 'andwell-intelligence', 'competitive-intelligence-hub.json');
   if (configuredStoreFile) candidates.push(configuredStoreFile);
-  if (configuredDataDir) candidates.push(path.join(configuredDataDir, 'competitive-intelligence-hub.json'));
-  candidates.push(path.join(process.cwd(), '.data', 'competitive-intelligence-hub.json'));
-  candidates.push(path.join(os.tmpdir(), 'andwell-intelligence', 'competitive-intelligence-hub.json'));
+  if (process.env.VERCEL) candidates.push(tempStore);
+  if (configuredDataDir && (!process.env.VERCEL || path.isAbsolute(configuredDataDir))) {
+    candidates.push(path.join(configuredDataDir, 'competitive-intelligence-hub.json'));
+  }
+  if (!process.env.VERCEL) candidates.push(path.join(process.cwd(), '.data', 'competitive-intelligence-hub.json'));
+  candidates.push(tempStore);
   return [...new Set(candidates)];
 }
 

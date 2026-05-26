@@ -29,12 +29,35 @@ function extractSourceCandidate(entry: string) {
   return '';
 }
 
+function hasSourceCandidate(entry: string) {
+  return Boolean(extractSourceCandidate(entry));
+}
+
 function sourceEntries(value: string) {
   const explicitOrDomain = /(?:https?:\/\/[^\s|<>"']+|www\.[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s|<>"']*)?|\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?:\/[^\s|<>"']*)?)/gi;
-  return value
+  const lines = value
     .split(/\n+/)
-    .flatMap((line) => {
-      const entry = line.trim();
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const entries: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const entry = lines[index];
+    const next = lines[index + 1];
+
+    if (!hasSourceCandidate(entry) && next && hasSourceCandidate(next)) {
+      entries.push(`${entry} | ${next}`);
+      index += 1;
+      continue;
+    }
+
+    const matches = [...entry.matchAll(explicitOrDomain)].map((match) => cleanCandidateUrl(match[0]));
+    if (matches.length > 1) entries.push(...matches);
+    else entries.push(entry);
+  }
+
+  return entries
+    .flatMap((entry) => {
       if (!entry) return [];
       const matches = [...entry.matchAll(explicitOrDomain)].map((match) => cleanCandidateUrl(match[0]));
       return matches.length > 1 ? matches : [entry];
@@ -55,11 +78,12 @@ export function sourcePreview(value: string) {
     .slice(0, 25)
     .map((entry): SourcePreviewItem => {
       const candidate = extractSourceCandidate(entry);
+      const displayInput = candidate || entry;
       const result = validatePublicHttpUrl(candidate || entry);
       if (!result.ok || !result.url) {
         return {
           raw: entry,
-          input: candidate || entry,
+          input: displayInput,
           url: result.url,
           host: result.host,
           valid: false,

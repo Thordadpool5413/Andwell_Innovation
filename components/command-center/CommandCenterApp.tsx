@@ -232,7 +232,7 @@ export default function CommandCenterApp() {
       {activeTab === 'sources' ? <BuildIntelligenceScreen state={state} sourceText={sourceText} setSourceText={setSourceText} scanBusy={scanBusy} scanMessage={scanMessage} onScan={() => void handleScan()} scanPercent={scanPercent} /> : null}
       {activeTab === 'matrix' ? <MatrixScreenView matrix={matrix} hasReport={Boolean(state.currentReport)} /> : null}
       {activeTab === 'map' ? <GrowthMapScreenView growthMap={growthMap} hasReport={Boolean(state.currentReport)} /> : null}
-      {activeTab === 'library' ? <LibraryScreenView approvedItems={filteredApproved} allApprovedCount={approvedItems.length} search={search} setSearch={setSearch} competitors={state.competitors} onDelete={(url) => void handleDeleteCompetitor(url)} onBuild={() => setActiveTab('sources')} /> : null}
+      {activeTab === 'library' ? <LibraryScreenView approvedItems={filteredApproved} allApprovedCount={approvedItems.length} search={search} setSearch={setSearch} competitors={state.competitors} report={state.currentReport} onDelete={(url) => void handleDeleteCompetitor(url)} onBuild={() => setActiveTab('sources')} /> : null}
       {activeTab === 'strategy' ? <StrategyScreenView report={state.currentReport} onBuild={() => setActiveTab('sources')} matrix={matrix} growthMap={growthMap} /> : null}
       {activeTab === 'coach' ? <CoachScreenView report={state.currentReport} question={question} setQuestion={setQuestion} askBusy={askBusy} askResponse={askResponse} onAsk={() => void handleAsk()} growthMap={growthMap} matrix={matrix} /> : null}
       {activeTab === 'report' ? <ReportScreenView report={state.currentReport} approvedItems={approvedItems} growthMap={growthMap} matrix={matrix} /> : null}

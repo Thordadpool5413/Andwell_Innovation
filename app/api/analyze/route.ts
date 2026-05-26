@@ -175,23 +175,20 @@ async function runAnalyzeJob(params: {
   const perCompetitorTimeoutMs = timeoutMsFromEnv('ANALYZE_COMPETITOR_TIMEOUT_MS', 35000, 10000, 120000);
   const crawlErrors: { url: string; error: string }[] = [];
   const aiErrors: { url: string; error: string }[] = [];
-  const analyses: CompetitorAnalysis[] = [];
+  const analyses: Array<CompetitorAnalysis | null> = new Array(params.competitors.length).fill(null);
   const perCompetitorMs: Record<string, number> = {};
 
   let timedOut = false;
   const limitReached = () => Date.now() - started >= totalTimeoutMs;
 
-  for (let i = 0; i < params.competitors.length; i += 1) {
-    if (limitReached()) {
-      timedOut = true;
-      break;
-    }
-    const competitor = params.competitors[i];
+  let nextIndex = 0;
+  let completed = 0;
+  async function processCompetitor(competitor: CompetitorInput, index: number) {
     const oneStarted = Date.now();
     try {
       const result = await withTimeout((async () => {
         const pages = await crawlSite(competitor.url, params.maxPages);
-        let analysis = analyzeCompetitor(competitor, pages, i);
+        let analysis = analyzeCompetitor(competitor, pages, index);
         if (params.shouldUseAI) {
           try {
             const aiExtraction = await extractCompetitorIntelligence(competitor, pages);
@@ -202,28 +199,45 @@ async function runAnalyzeJob(params: {
         }
         return { analysis };
       })(), perCompetitorTimeoutMs, `Competitor processing timed out after ${perCompetitorTimeoutMs}ms.`);
-      analyses.push(result.analysis);
+      analyses[index] = result.analysis;
     } catch (error) {
       const fallbackPage: CrawledPage = { url: competitor.url, title: 'Crawl limitation', text: '', excerpt: 'No readable public content could be extracted from this website.' };
-      analyses.push(analyzeCompetitor(competitor, [fallbackPage], i));
+      analyses[index] = analyzeCompetitor(competitor, [fallbackPage], index);
       crawlErrors.push({ url: competitor.url, error: error instanceof Error ? error.message : 'Unknown crawl error' });
     }
 
     perCompetitorMs[competitor.url] = Date.now() - oneStarted;
+    completed += 1;
     job = await updateJob(job, {
-      progress: { done: analyses.length, total: params.competitors.length },
+      progress: { done: completed, total: params.competitors.length },
       timing: { ...job.timing, elapsedMs: Date.now() - started, perCompetitorMs }
     });
   }
 
-  const finalSourceHealth = mergeCrawlSourceHealth(params.sourceHealth, analyses, crawlErrors);
-  const report = buildReport(analyses, [...crawlErrors, ...aiErrors.map((item) => ({ url: item.url, error: `AI extraction: ${item.error}` }))]);
+  async function worker() {
+    while (nextIndex < params.competitors.length) {
+      if (limitReached()) {
+        timedOut = true;
+        return;
+      }
+      const index = nextIndex;
+      nextIndex += 1;
+      await processCompetitor(params.competitors[index], index);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(params.concurrency, params.competitors.length));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  const completedAnalyses = analyses.filter(Boolean) as CompetitorAnalysis[];
+  const finalSourceHealth = mergeCrawlSourceHealth(params.sourceHealth, completedAnalyses, crawlErrors);
+  const report = buildReport(completedAnalyses, [...crawlErrors, ...aiErrors.map((item) => ({ url: item.url, error: `AI extraction: ${item.error}` }))]);
   const enrichment = await enrichProvidersWithFreeSources(params.competitors).catch(() => ({
     providerEnrichment: [],
     geographicSignals: [],
     externalDataSummary: { providersEnriched: 0, providerMatches: 0, geographicSignals: 0, lastEnrichedAt: new Date().toISOString() }
   }));
-  const aiSummaries = analyses.map((analysis) => analysis.aiExtraction?.leadershipSummary).filter(Boolean);
+  const aiSummaries = completedAnalyses.map((analysis) => analysis.aiExtraction?.leadershipSummary).filter(Boolean);
   const enhancedReport = enrichReportIntelligence({
     ...report,
     aiEnabled: params.shouldUseAI,

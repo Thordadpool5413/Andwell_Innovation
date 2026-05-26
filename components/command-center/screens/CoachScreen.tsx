@@ -95,9 +95,9 @@ export function CoachScreenView({
         </div>
         <div className="cc-workspace-stats">
           <article><strong>{report ? 'Loaded' : 'Ready'}</strong><span>Evidence package</span></article>
-          <article><strong>{matrix.summary.capabilitiesMapped || 'Model'}</strong><span>Capability signals</span></article>
-          <article><strong>{growthMap.areas.length || 'Map'}</strong><span>Market areas</span></article>
-          <article><strong>Guarded</strong><span>Language rules</span></article>
+          <article><strong>{matrix.summary.capabilitiesMapped}</strong><span>Capability signals</span></article>
+          <article><strong>{growthMap.areas.length}</strong><span>Market areas</span></article>
+          <article><strong>Active</strong><span>Language rules</span></article>
         </div>
       </section>
 

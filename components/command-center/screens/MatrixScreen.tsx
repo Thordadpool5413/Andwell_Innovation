@@ -56,10 +56,10 @@ export function MatrixScreenView({ matrix, hasReport }: { matrix: AdvantageMatri
           <p>Compare Andwell capabilities against public competitor evidence with confidence, safe language, and recommended next moves built into each cell.</p>
         </div>
         <div className="cc-workspace-stats">
-          <article><strong>{matrix.summary.capabilitiesMapped || 14}</strong><span>Capabilities mapped</span></article>
-          <article><strong>{matrix.summary.competitorsCompared || 'Ready'}</strong><span>Competitors compared</span></article>
-          <article><strong>{matrix.summary.advantageSignals || 'Model'}</strong><span>Advantage signals</span></article>
-          <article><strong>{matrix.summary.evidenceLimited || 'Guarded'}</strong><span>Evidence-limited cells</span></article>
+          <article><strong>{matrix.summary.capabilitiesMapped}</strong><span>Capabilities mapped</span></article>
+          <article><strong>{matrix.summary.competitorsCompared}</strong><span>Competitors compared</span></article>
+          <article><strong>{matrix.summary.advantageSignals}</strong><span>Advantage signals</span></article>
+          <article><strong>{matrix.summary.evidenceLimited}</strong><span>Evidence-limited cells</span></article>
         </div>
       </section>
 
@@ -145,7 +145,7 @@ export function MatrixScreenView({ matrix, hasReport }: { matrix: AdvantageMatri
         </article>
         <article>
           <CheckCircle2 size={18} />
-          <div><strong>{strongest.length || 'Advantage'} positioning signals</strong><p>{strongest.map((item) => item.capability).join(', ') || 'Advantage signals appear after source processing.'}</p></div>
+          <div><strong>{strongest.length} positioning signals</strong><p>{strongest.map((item) => item.capability).join(', ') || 'Current package is using guarded capability comparison language.'}</p></div>
         </article>
         <article>
           <ArrowRight size={18} />

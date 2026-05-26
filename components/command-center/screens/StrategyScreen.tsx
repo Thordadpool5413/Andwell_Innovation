@@ -43,8 +43,8 @@ export function StrategyScreenView({ report, onBuild, matrix, growthMap }: { rep
         <div className="cc-workspace-stats">
           <article><strong>{report.competitorsAnalyzed}</strong><span>Competitors</span></article>
           <article><strong>{number(report.pagesReviewed)}</strong><span>Pages reviewed</span></article>
-          <article><strong>{matrix.summary.advantageSignals || 'Model'}</strong><span>Advantage signals</span></article>
-          <article><strong>{growthMap.summary.fieldFocusZones.length || 'Focus'}</strong><span>Field zones</span></article>
+          <article><strong>{matrix.summary.advantageSignals}</strong><span>Advantage signals</span></article>
+          <article><strong>{growthMap.summary.fieldFocusZones.length}</strong><span>Field zones</span></article>
         </div>
       </section>
 

@@ -46,10 +46,10 @@ export function GrowthMapScreenView({ growthMap, hasReport }: { growthMap: Growt
           <p>Map source-backed market signals into growth opportunity, saturation, Andwell advantage, field focus, and partnership potential.</p>
         </div>
         <div className="cc-workspace-stats">
-          <article><strong>{growthMap.summary.topGrowthAreas.length || 'Ready'}</strong><span>Growth areas</span></article>
-          <article><strong>{growthMap.summary.saturatedAreas.length || 'Model'}</strong><span>Saturated areas</span></article>
-          <article><strong>{growthMap.summary.fieldFocusZones.length || 'Focus'}</strong><span>Field focus zones</span></article>
-          <article><strong>{growthMap.summary.geographicSignals || 'Guarded'}</strong><span>Geo evidence signals</span></article>
+          <article><strong>{growthMap.summary.topGrowthAreas.length}</strong><span>Growth areas</span></article>
+          <article><strong>{growthMap.summary.saturatedAreas.length}</strong><span>Saturated areas</span></article>
+          <article><strong>{growthMap.summary.fieldFocusZones.length}</strong><span>Field focus zones</span></article>
+          <article><strong>{growthMap.summary.geographicSignals}</strong><span>Geo evidence signals</span></article>
         </div>
       </section>
 

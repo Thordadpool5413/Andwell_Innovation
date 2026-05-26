@@ -7,8 +7,8 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     app: 'Andwell Innovation Command Center',
-    version: 'andwell-innovation-plugin-governed-2026-05-25-04',
-    buildFingerprint: 'andwell-innovation-main-plugin-governed-intelligence',
+    version: 'andwell-innovation-package-recovery-2026-05-26-01',
+    buildFingerprint: 'andwell-innovation-canonical-package-ui-recovery',
     repository: 'Thordadpool5413/Andwell_Innovation',
     message: 'This fingerprint confirms the active deployment is serving the Andwell Innovation frontend and async intelligence workflow.',
     expectedServer: 'Node.js Next server',
